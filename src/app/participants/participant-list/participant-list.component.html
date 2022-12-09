@@ -1,0 +1,15 @@
+<mat-accordion class="headers-align" multi="true" *ngIf="participants.length > 0">
+  <mat-expansion-panel *ngFor="let participant of sortedParticipants" hideToggle>
+    <mat-expansion-panel-header>
+      <mat-panel-title>
+        <mat-icon class="icon" color="primary">filter_{{participant.position}}</mat-icon>
+        <div><img src="../../../assets/{{participant.lastName}}.jpg" class="image"></div>
+        {{ participant.firstName }} {{participant.lastName}}
+      </mat-panel-title>
+      <mat-panel-description class="total-points">{{participant.points}} Points</mat-panel-description>
+    </mat-expansion-panel-header>
+    <app-teams-table [teams]="participant.teams"></app-teams-table>
+  </mat-expansion-panel>
+</mat-accordion>
+<p class="info-text" *ngIf="participants.length <= 0">No Participants Found!</p>
+

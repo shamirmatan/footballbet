@@ -1,0 +1,38 @@
+:host {
+  display: block;
+  margin-top: 1rem;
+}
+
+.info-text {
+  text-align: center;
+}
+
+.icon {
+  margin-right:0.5rem;
+}
+
+.total-points {
+  position: absolute;
+  right: -0.1px;
+  text-align: center;
+  text-wrap: normal;
+  font-size: 15px;
+}
+
+.image {
+  border-radius: 50%;
+  height: 100%;
+  width: 100%;
+  object-fit: contain;
+}
+
+div {
+  border-radius: 50%;
+  height: 16pt;
+  width: 16pt;
+  float: left;
+  overflow: hidden;
+  border: 1px solid #555;
+  margin-right: 0.7rem;
+}
+

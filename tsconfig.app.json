@@ -6,7 +6,9 @@
     "types": []
   },
   "files": [
-    "src/main.ts"
+    "src/main.ts",
+    "src/app/participants/participant.model.ts",
+    "src/app/participants/team.model.ts"
   ],
   "include": [
     "src/**/*.d.ts"
