@@ -13,6 +13,7 @@ import {MatIconModule} from "@angular/material/icon";
 import {TeamsTableComponent} from "./participants/teams-table/teams-table.component";
 import {MatTableModule} from "@angular/material/table";
 import {FooterComponent} from "./footer/footer";
+import {HttpClientModule} from "@angular/common/http";
 
 @NgModule({
   declarations: [
@@ -23,6 +24,7 @@ import {FooterComponent} from "./footer/footer";
     FooterComponent,
   ],
   imports: [
+    HttpClientModule,
     BrowserModule,
     AppRoutingModule,
     MatCardModule,

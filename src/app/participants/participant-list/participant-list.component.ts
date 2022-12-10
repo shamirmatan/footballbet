@@ -1,15 +1,33 @@
-import {Component, ViewChild} from "@angular/core";
+import {Component, OnDestroy, OnInit, ViewChild} from "@angular/core";
 import {MatAccordion} from "@angular/material/expansion";
-import participantsData from '../../../assets/participants.json'
+import {ParticipantsService} from "../participants.service";
+import {Subscription} from "rxjs";
 
 @Component({
   selector: 'app-participant-list',
   templateUrl: './participant-list.component.html',
   styleUrls: ['./participant-list.component.css']
 })
-export class ParticipantListComponent {
+export class ParticipantListComponent implements OnInit, OnDestroy {
   @ViewChild(MatAccordion) accordion: MatAccordion;
 
-  participants: Participant[] = participantsData
-  sortedParticipants = this.participants.sort((a, b) => (a.position < b.position) ? -1 : 1);
+  constructor(public participantsService: ParticipantsService) {
+  }
+  participants: Participant[] = []
+  private participantsSub: Subscription;
+  private MAPPING: any = { 1: "one", 2: "two", 3: "3", 4: "4" }
+
+  ngOnInit() {
+    this.participantsService.getParticipants()
+    this.participantsSub = this.participantsService.getParticipantsUpdateListener()
+      .subscribe((participants: Participant[]) => {
+        this.participants = participants;
+      });
+  }
+  ngOnDestroy() {
+    this.participantsSub.unsubscribe()
+  }
+  numToString(number: number) {
+    return this.MAPPING[number]
+  }
 }
