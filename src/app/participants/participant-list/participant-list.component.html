@@ -1,4 +1,5 @@
-<mat-accordion class="headers-align" multi="true" *ngIf="participants.length > 0">
+<mat-spinner *ngIf="isLoading"></mat-spinner>
+<mat-accordion class="headers-align" multi="true" *ngIf="participants.length > 0 && !isLoading">
   <mat-expansion-panel *ngFor="let participant of participants" hideToggle>
     <mat-expansion-panel-header>
       <mat-panel-title>
@@ -11,5 +12,4 @@
     <app-teams-table [teams]="participant.teams"></app-teams-table>
   </mat-expansion-panel>
 </mat-accordion>
-<p class="info-text" *ngIf="participants.length <= 0">No Participants Found!</p>
-
+<p class="info-text" *ngIf="participants.length <= 0 && !isLoading">No Participants Found!</p>

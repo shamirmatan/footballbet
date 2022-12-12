@@ -13,15 +13,18 @@ export class ParticipantListComponent implements OnInit, OnDestroy {
 
   constructor(public participantsService: ParticipantsService) {
   }
+  isLoading: boolean;
   participants: Participant[] = []
   private participantsSub: Subscription;
   private MAPPING: any = { 1: "one", 2: "two", 3: "3", 4: "4" }
 
   ngOnInit() {
-    this.participantsService.getParticipants()
+    this.isLoading = true;
+    this.participantsService.getParticipants();
     this.participantsSub = this.participantsService.getParticipantsUpdateListener()
       .subscribe((participants: Participant[]) => {
         this.participants = participants;
+        this.isLoading = false;
       });
   }
   ngOnDestroy() {

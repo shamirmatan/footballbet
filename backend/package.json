@@ -1,0 +1,10 @@
+{
+  "name": "football-bet",
+  "version": "0.0.0",
+  "private": true,
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^6.8.0",
+    "tslib": "^2.3.0"
+  }
+}
