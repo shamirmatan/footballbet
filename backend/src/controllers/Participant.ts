@@ -1,0 +1,58 @@
+import { NextFunction, Request, Response } from 'express';
+import mongoose from 'mongoose';
+import Participant from '../models/Participant';
+
+const createParticipant = (req: Request, res: Response) => {
+  const { firstName, lastName } = req.body;
+
+  const participant = new Participant({
+    _id: new mongoose.Types.ObjectId(),
+    firstName,
+    lastName,
+    position: 1,
+    points: 0,
+    teams: []
+  });
+
+  return participant
+    .save()
+    .then((participant) => res.status(201).json({ participant }))
+    .catch((error) => res.status(500).json({ error }));
+};
+
+const readParticipant = (req: Request, res: Response) => {
+  const participantId = req.params.participantId;
+
+  return Participant.findById(participantId)
+    .populate('teams')
+    .then((participant) => (participant ? res.status(200).json({ participant }) : res.status(404).json({ message: 'not found' })))
+    .catch((error) => res.status(500).json({ error }));
+};
+
+const readAll = (req: Request, res: Response) => {
+  return Participant.find()
+    .populate('teams')
+    .then((participants) => res.status(200).json({ participants: participants }))
+    .catch((error) => res.status(500).json({ error }));
+};
+
+const updateParticipant = (req: Request, res: Response) => {
+  const participantId = req.params.participantId;
+
+  return Participant.findById(participantId)
+    .then((participant) => {
+      if (participant) {
+        participant.set(req.body);
+
+        return participant
+          .save()
+          .then((participant) => res.status(201).json({ participant }))
+          .catch((error) => res.status(500).json({ error }));
+      } else {
+        return res.status(404).json({ message: 'not found' });
+      }
+    })
+    .catch((error) => res.status(500).json({ error }));
+};
+
+export default { createParticipant, readParticipant, readAll, updateParticipant };
