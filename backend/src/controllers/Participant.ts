@@ -1,6 +1,7 @@
 import {Request, Response} from 'express';
 import mongoose from 'mongoose';
 import Participant from '../models/Participant';
+import {ITeam} from '../models/Team';
 
 const createParticipant = (req: Request, res: Response) => {
   const {firstName, lastName} = req.body;
@@ -42,10 +43,10 @@ const updateParticipant = (req: Request, res: Response) => {
   const participantLastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
 
   return Participant.findOne({lastName: participantLastName})
+    .populate('teams')
     .then((participant) => {
       if (participant) {
-        participant.set(req.body);
-
+        participant.set({...req.body, ...sumTeamPoints(participant.teams)});
         return participant
           .save()
           .then((participant) => res.status(201).json({participant}))
@@ -56,5 +57,11 @@ const updateParticipant = (req: Request, res: Response) => {
     })
     .catch((error) => res.status(500).json({error}));
 };
-
+const sumTeamPoints = (teams: [ITeam]): any => {
+  let sum = 0;
+  teams.forEach((team) => {
+    sum += team.points;
+  });
+  return {points: sum}
+}
 export default {createParticipant, readParticipant, readAll, updateParticipant};

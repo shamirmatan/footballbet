@@ -1,6 +1,7 @@
 import mongoose, {Document, Schema} from 'mongoose';
 
 export interface ITeam {
+  api_id: number;
   name: string;
   games: number;
   wins: number;

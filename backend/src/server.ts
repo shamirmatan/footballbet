@@ -5,6 +5,7 @@ import {config} from './config/config';
 import Logging from './library/Logging';
 import participantRoutes from './routes/Participant';
 import teamRoutes from './routes/Team';
+import updateRoutes from './routes/Update';
 
 const router = express();
 
@@ -51,6 +52,7 @@ const StartServer = () => {
   /** Routes */
   router.use('/api/participants', participantRoutes);
   router.use('/api/teams', teamRoutes);
+  router.use('/api/update', updateRoutes)
 
   /** Error handling */
   router.use((req, res) => {

@@ -7,5 +7,4 @@ router.post('/create', controller.createParticipant);
 router.get('/:participantLastName', controller.readParticipant);
 router.get('/', controller.readAll);
 router.patch('/update/:participantLastName', controller.updateParticipant);
-
 export default router;
