@@ -5,7 +5,6 @@ import {config} from './config/config';
 import Logging from './library/Logging';
 import participantRoutes from './routes/Participant';
 import teamRoutes from './routes/Team';
-import axios from "axios";
 
 const router = express();
 
@@ -63,26 +62,6 @@ const StartServer = () => {
       message: error.message
     });
   });
-
-  async function periodicFunction() {
-    console.log("Hi I'm Running Periodically!")
-    axios.get('https://v3.football.api-sports.io/teams/statistics?team=12&league=1&season=2022', {
-      method: "GET",
-      headers: {
-        'x-rapidapi-host': 'v3.football.api-sports.io',
-        'x-rapidapi-key': 'a334149f067c28ebb0ca60e48822c0cc'
-      }
-    }).then(function (response) {
-      // handle success
-      console.log(response.data.response);
-    })
-      .catch(function (error) {
-        // handle error
-        console.log(error);
-      })
-  }
-
-  // const intervalId = setInterval(periodicFunction, 2000);
 
   http.createServer(router).listen(config.server.port, () => Logging.info(`Server is running on port ${config.server.port}`));
 };

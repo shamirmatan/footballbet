@@ -4,7 +4,8 @@ import controller from '../controllers/Team';
 const router = express.Router();
 
 router.post('/create', controller.createTeam);
-router.get('/:teamId', controller.readTeam);
+router.get('/:teamName', controller.readTeam);
 router.get('/', controller.readAll);
-router.patch('/update/:teamId', controller.updateTeam);
-export = router;
+router.patch('/update/:teamName', controller.updateTeam);
+
+export default router;

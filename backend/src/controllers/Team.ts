@@ -1,9 +1,16 @@
-import { NextFunction, Request, Response } from 'express';
+import {Request, Response} from 'express';
 import mongoose from 'mongoose';
 import Team from '../models/Team';
 
+const toTitleCase = (phrase: string) => {
+  return phrase
+    .toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+};
 const createTeam = (req: Request, res: Response) => {
-  const { name, api_id } = req.body;
+  const {name, api_id} = req.body;
 
   const team = new Team({
     _id: new mongoose.Types.ObjectId(),
@@ -19,41 +26,42 @@ const createTeam = (req: Request, res: Response) => {
 
   return team
     .save()
-    .then((team) => res.status(201).json({ team }))
-    .catch((error) => res.status(500).json({ error }));
+    .then((team) => res.status(201).json({team}))
+    .catch((error) => res.status(500).json({error}));
 };
 
 const readTeam = (req: Request, res: Response) => {
-  const teamId = req.params.teamId;
+  const teamName = toTitleCase(req.params.teamName);
 
-  return Team.findById(teamId)
-    .then((team) => (team ? res.status(200).json({ team }) : res.status(404).json({ message: 'not found' })))
-    .catch((error) => res.status(500).json({ error }));
+  return Team.findOne({name: teamName})
+    .then((team) => (team ? res.status(200).json({team}) : res.status(404).json({message: 'not found'})))
+    .catch((error) => res.status(500).json({error}));
 };
 
 const readAll = (req: Request, res: Response) => {
   return Team.find()
-    .then((teams) => res.status(200).json({ teams }))
-    .catch((error) => res.status(500).json({ error }));
+    .then((teams) => res.status(200).json({teams}))
+    .catch((error) => res.status(500).json({error}));
 };
 
 const updateTeam = (req: Request, res: Response) => {
-  const teamId = req.params.teamId;
+  const teamName = toTitleCase(req.params.teamName);
 
-  return Team.findById(teamId)
+  return Team.findOne({name: teamName})
     .then((team) => {
       if (team) {
         team.set(req.body);
 
         return team
           .save()
-          .then((team) => res.status(201).json({ team }))
-          .catch((error) => res.status(500).json({ error }));
+          .then((team) => res.status(201).json({team}))
+          .catch((error) => res.status(500).json({error}));
       } else {
-        return res.status(404).json({ message: 'not found' });
+        return res.status(404).json({message: 'not found'});
       }
     })
-    .catch((error) => res.status(500).json({ error }));
+    .catch((error) => res.status(500).json({error}));
 };
 
-export default { createTeam, readTeam, readAll, updateTeam };
+
+export default {createTeam, readTeam, readAll, updateTeam};
