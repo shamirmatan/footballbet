@@ -3,5 +3,6 @@ interface Participant {
   lastName: string;
   teams: Team[];
   position: number;
-  points: Number;
+  points: number;
+  logo: string;
 }

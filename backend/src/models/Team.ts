@@ -9,6 +9,7 @@ export interface ITeam {
   draws: number;
   points: number;
   qualifications: number
+  logo: string;
 }
 
 export interface ITeamModel extends ITeam, Document {
@@ -24,9 +25,11 @@ const TeamSchema: Schema = new Schema(
     draws: {type: Number, required: true},
     points: {type: Number, required: true},
     qualifications: {type: Number, required: true},
+    logo: {type: String, required: false},
   },
   {
-    versionKey: false
+    versionKey: false,
+    strict: false,
   }
 );
 

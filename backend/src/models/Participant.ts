@@ -5,7 +5,6 @@ export interface IParticipant {
   firstName: string;
   lastName: string;
   teams: [ITeam];
-  position: number;
   points: number
 }
 
@@ -16,7 +15,6 @@ const ParticipantSchema: Schema = new Schema(
   {
     firstName: {type: String, required: true},
     lastName: {type: String, required: true},
-    position: {type: Number, required: true},
     points: {type: Number, required: true},
     teams: [{type: Schema.Types.ObjectId, required: true, ref: 'Team'}]
   },

@@ -6,9 +6,11 @@ import Logging from './library/Logging';
 import participantRoutes from './routes/Participant';
 import teamRoutes from './routes/Team';
 import updateRoutes from './routes/Update';
+import {updateParticipantsPeriodically, updateTeamsPeriodically} from "./controllers/Update";
 
 const router = express();
 
+const TWELVEHOURS: number = 1000 * 60 * 60 * 12
 /** Connect to Mongo */
 mongoose
   .connect(config.mongo.url, {retryWrites: true, w: 'majority'})
@@ -54,6 +56,7 @@ const StartServer = () => {
   router.use('/api/teams', teamRoutes);
   router.use('/api/update', updateRoutes)
 
+  // setInterval(updateTeamsPeriodically,  TWELVEHOURS) // COMMENT OUT FOR PERIODIC FETCH
   /** Error handling */
   router.use((req, res) => {
     const error = new Error('Not found');

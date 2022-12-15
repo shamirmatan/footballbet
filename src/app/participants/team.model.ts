@@ -5,5 +5,7 @@ interface Team {
   losses: number;
   draws: number;
   points: number;
-  qualifications: number
+  qualifications: number;
+
+  logo: string;
 }

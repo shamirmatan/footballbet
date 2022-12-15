@@ -6,6 +6,6 @@ import {Component, Input} from "@angular/core";
   styleUrls: ['./teams-table.component.css']
 })
 export class TeamsTableComponent {
-  displayedColumns: string[] = ['name', 'games', 'wins', 'draws', 'losses', 'qualifications', 'points'];
+  displayedColumns: string[] = ['logo','name', 'games', 'wins', 'draws', 'losses', 'qualifications', 'points'];
   @Input() teams: Team[];
 }

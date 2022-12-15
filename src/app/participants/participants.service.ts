@@ -16,7 +16,8 @@ export class ParticipantsService {
   getParticipants() {
     this.httpClient.get<{ participants: Participant[] }>(BACKEND_URL).subscribe(
       (participantsData) => {
-        this.participants = participantsData.participants.sort((a, b) => (a.position < b.position) ? -1 : 1);
+        this.participants = participantsData.participants.sort((a, b) => (a.points > b.points) ? -1 : 1);
+        this.participants.map((participant, index) => participant.position = index + 1)
         this.participantsUpdated.next([...this.participants]);
       });
   }
