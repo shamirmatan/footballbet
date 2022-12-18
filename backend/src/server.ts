@@ -56,7 +56,7 @@ const StartServer = () => {
   router.use('/api/teams', teamRoutes);
   router.use('/api/update', updateRoutes)
 
-  // setInterval(updateTeamsPeriodically,  TWELVEHOURS) // COMMENT OUT FOR PERIODIC FETCH
+  // setInterval(updateTeamsPeriodically,  20000)//TWELVEHOURS) // COMMENT OUT FOR PERIODIC FETCH
   /** Error handling */
   router.use((req, res) => {
     const error = new Error('Not found');

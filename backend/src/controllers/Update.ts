@@ -42,11 +42,12 @@ export const updateTeamsPeriodically = async () => {
           )
         })
       await team.save()
-      await delay(5000)
+      delay(5000)
     }
     await updateParticipantsPeriodically()
     console.log("Updated Successfully!");
   } catch (error) {
+    console.log(error)
     console.log("Updated Failed!");
   }
 }
@@ -69,6 +70,7 @@ const updateTeams = async (req: Request, res: Response) => {
     for await(const team of Team.find({name: {$in: names}})) {
       await getTeam(team.api_id).then(
         (data) => {
+          console.log(data)
           team.set(
             {
               // @ts-ignore
@@ -92,7 +94,8 @@ const updateTeams = async (req: Request, res: Response) => {
     }
     res.status(201).json({message: "Updated Successfully!"});
   } catch (error) {
-    res.status(500).json({message: "Updated Failed!"});
+    console.log(error)
+    res.status(500).json({message: "Update Failed!"});
   }
 }
 

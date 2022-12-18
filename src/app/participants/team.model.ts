@@ -6,6 +6,7 @@ interface Team {
   draws: number;
   points: number;
   qualifications: number;
-
   logo: string;
+
+  eliminated: string;
 }

@@ -4,6 +4,7 @@ table {
 
 table td, table th {
   padding: 0 5px;
+  font-weight: 500;
 }
 
 
@@ -15,4 +16,9 @@ img {
   display: block;
   margin-left: auto;
   margin-right: auto;
+}
+.make-red {
+  background-color: #B00020;
+  font-weight: 300;
+  opacity: .6;
 }
