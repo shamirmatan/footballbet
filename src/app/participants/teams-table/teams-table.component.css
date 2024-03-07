@@ -16,9 +16,11 @@ img {
   display: block;
   margin-left: auto;
   margin-right: auto;
+  pointer-events: none;
 }
 .make-red {
   background-color: #B00020;
   font-weight: 300;
   opacity: .6;
+  pointer-events: none;
 }
