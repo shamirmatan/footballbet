@@ -10,18 +10,18 @@ const toTitleCase = (phrase: string) => {
     .join(' ');
 };
 const createTeam = (req: Request, res: Response) => {
-  const {name, api_id} = req.body;
-
+  const {logo, name, api_id} = req.body;
   const team = new Team({
     _id: new mongoose.Types.ObjectId(),
-    name,
-    api_id,
+    name: name,
+    api_id: api_id,
     games: 0,
     wins: 0,
     losses: 0,
     draws: 0,
     qualifications: 0,
     points: 0,
+    logo: logo,
   });
 
   return team

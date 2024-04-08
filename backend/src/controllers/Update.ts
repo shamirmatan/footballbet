@@ -70,7 +70,7 @@ const updateTeams = async (req: Request, res: Response) => {
     for await(const team of Team.find({name: {$in: names}})) {
       await getTeam(team.api_id).then(
         (data) => {
-          console.log(data)
+          console.log(`Updating ${team.name}...`)
           team.set(
             {
               // @ts-ignore
@@ -102,11 +102,11 @@ const updateTeams = async (req: Request, res: Response) => {
 async function getTeam(apiId: number) {
   try {
     const {data} = await axios.get<GetTeamResponse>(
-      `https://v3.football.api-sports.io/teams/statistics?team=${apiId}&league=1&season=2022`,
+      `https://api-football-v1.p.rapidapi.com/v3/teams/statistics?team=${apiId}&league=4&season=2024`,
       {
         headers: {
-          'x-rapidapi-host': 'v3.football.api-sports.io',
-          'x-rapidapi-key': 'a334149f067c28ebb0ca60e48822c0cc'
+          'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
+          'x-rapidapi-key': '385acad3c4msh830d8286a1a0b75p1ded78jsna6880571e6a6'
         }
       },
     );
