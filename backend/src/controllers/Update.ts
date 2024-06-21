@@ -16,7 +16,9 @@ export const updateParticipantsPeriodically = async () => {
   }
 };
 
-export const updateTeamsPeriodically = async () => {
+export const updateTeamsPeriodically = async () => updateAll
+
+const updateAll = async (req: Request, res: Response) => {
   try {
     for await(const team of Team.find()) {
       console.log(`Updating ${team.name}...`)
@@ -51,6 +53,7 @@ export const updateTeamsPeriodically = async () => {
     console.log("Updated Failed!");
   }
 }
+
 const updateParticipants = async (_req: Request, res: Response) => {
   try {
     for await (const participant of Participant.find().populate('teams')) {
@@ -145,4 +148,4 @@ const sumTeamPoints = (teams: [ITeam]): any => {
   });
   return {points: sum}
 }
-export default {updateTeams, updateParticipants};
+export default {updateTeams, updateParticipants, updateAll};
