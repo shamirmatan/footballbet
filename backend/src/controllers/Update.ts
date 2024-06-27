@@ -85,7 +85,7 @@ const updateTeams = async (req: Request, res: Response) => {
               // @ts-ignore
               draws: data.fixtures.draws.total,
               // @ts-ignore
-              qualifications: getQualifications(data.fixtures),
+              qualifications: getQualifications(data.fixtures, team.qualifications),
               // @ts-ignore
               points: getPoints(data.fixtures, team.qualifications),
               // @ts-ignore
