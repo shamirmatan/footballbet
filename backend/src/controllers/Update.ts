@@ -35,9 +35,9 @@ const updateAll = async (req: Request, res: Response) => {
               // @ts-ignore
               draws: data.fixtures.draws.total,
               // @ts-ignore
-              points: getPoints(data.fixtures),
+              points: getPoints(data.fixtures, team.qualifications),
               // @ts-ignore
-              qualifications: getQualifications(data.fixtures),
+              qualifications: getQualifications(data.fixtures, team.qualifications),
               // @ts-ignore
               logo: data.team.logo,
             }
@@ -85,7 +85,7 @@ const updateTeams = async (req: Request, res: Response) => {
               // @ts-ignore
               draws: data.fixtures.draws.total,
               // @ts-ignore
-              points: getPoints(data.fixtures),
+              points: getPoints(data.fixtures, tema.qualifications),
               // @ts-ignore
               qualifications: getQualifications(data.fixtures),
               // @ts-ignore
@@ -125,7 +125,7 @@ async function getTeam(apiId: number) {
   }
 }
 
-const getPoints = (fixtures: Fixtures): number => {
+const getPoints = (fixtures: Fixtures, qualifications: number): number => {
   const qualificationRules: any = {
     0: 0,
     1: 2,
@@ -134,11 +134,11 @@ const getPoints = (fixtures: Fixtures): number => {
     4: 8,
     5: 13
   }
-  return fixtures.wins.total * 3 + fixtures.draws.total + qualificationRules[getQualifications(fixtures).toString()]
+  return fixtures.wins.total * 3 + fixtures.draws.total + qualificationRules[getQualifications(fixtures, qualifications).toString()]
 }
 
-const getQualifications = (fixtures: Fixtures): number => {
-  return fixtures.played.total >= 3 ? fixtures.played.total - 3 : 0
+const getQualifications = (fixtures: Fixtures, qualifications: number): number => {
+  return fixtures.played.total >= 3 ? fixtures.played.total - 3 : qualifications
 }
 
 const sumTeamPoints = (teams: [ITeam]): any => {
