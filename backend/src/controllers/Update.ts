@@ -138,7 +138,7 @@ const getPoints = (fixtures: Fixtures, qualifications: number): number => {
 }
 
 const getQualifications = (fixtures: Fixtures, qualifications: number): number => {
-  return fixtures.played.total >= 3 ? fixtures.played.total - 3 : qualifications
+  return fixtures.played.total > 3 ? fixtures.played.total - 3 : qualifications
 }
 
 const sumTeamPoints = (teams: [ITeam]): any => {
