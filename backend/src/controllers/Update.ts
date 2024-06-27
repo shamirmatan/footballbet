@@ -35,9 +35,9 @@ const updateAll = async (req: Request, res: Response) => {
               // @ts-ignore
               draws: data.fixtures.draws.total,
               // @ts-ignore
-              points: getPoints(data.fixtures, team.qualifications),
-              // @ts-ignore
               qualifications: getQualifications(data.fixtures, team.qualifications),
+              // @ts-ignore
+              points: getPoints(data.fixtures, team.qualifications),
               // @ts-ignore
               logo: data.team.logo,
             }
@@ -47,10 +47,10 @@ const updateAll = async (req: Request, res: Response) => {
       delay(5000)
     }
     await updateParticipantsPeriodically()
-    console.log("Updated Successfully!");
+    res.status(201).json({message: "Updated Successfully!"});
   } catch (error) {
     console.log(error)
-    console.log("Updated Failed!");
+    res.status(500).json({message: "Updated Failed!"});
   }
 }
 
@@ -85,9 +85,9 @@ const updateTeams = async (req: Request, res: Response) => {
               // @ts-ignore
               draws: data.fixtures.draws.total,
               // @ts-ignore
-              points: getPoints(data.fixtures, tema.qualifications),
-              // @ts-ignore
               qualifications: getQualifications(data.fixtures),
+              // @ts-ignore
+              points: getPoints(data.fixtures, tema.qualifications),
               // @ts-ignore
               logo: data.team.logo,
             }
