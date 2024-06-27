@@ -87,7 +87,7 @@ const updateTeams = async (req: Request, res: Response) => {
               // @ts-ignore
               qualifications: getQualifications(data.fixtures),
               // @ts-ignore
-              points: getPoints(data.fixtures, tema.qualifications),
+              points: getPoints(data.fixtures, team.qualifications),
               // @ts-ignore
               logo: data.team.logo,
             }
