@@ -38,23 +38,8 @@
   text-overflow: ellipsis;
 }
 
-.site-header__countdown {
-  background: rgba(245, 197, 24, 0.14);
-  color: var(--color-gold-500);
-  padding: 6px 14px;
-  border-radius: var(--radius-pill);
-  font-size: 13px;
-  font-weight: 600;
-  border: 1px solid rgba(245, 197, 24, 0.35);
-  white-space: nowrap;
-}
-
 @media (max-width: 480px) {
   .site-header__title {
     font-size: 17px;
-  }
-  .site-header__countdown {
-    font-size: 12px;
-    padding: 4px 10px;
   }
 }
