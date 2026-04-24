@@ -1,9 +1,9 @@
 <div class="page">
-  <mat-tab-group class="home-tabs" mat-stretch-tabs="false" dynamicHeight>
+  <mat-tab-group class="home-tabs" mat-stretch-tabs="true" dynamicHeight>
     <mat-tab>
       <ng-template mat-tab-label>
         <mat-icon class="tab-icon">leaderboard</mat-icon>
-        <span>Standings</span>
+        <span class="tab-label">Standings</span>
       </ng-template>
       <div class="tab-panel">
         <app-participant-list></app-participant-list>
@@ -13,7 +13,7 @@
     <mat-tab>
       <ng-template mat-tab-label>
         <mat-icon class="tab-icon">grid_view</mat-icon>
-        <span>Groups</span>
+        <span class="tab-label">Groups</span>
       </ng-template>
       <div class="tab-panel">
         <app-groups></app-groups>
@@ -23,7 +23,7 @@
     <mat-tab>
       <ng-template mat-tab-label>
         <mat-icon class="tab-icon">account_tree</mat-icon>
-        <span>Bracket</span>
+        <span class="tab-label">Playoffs</span>
       </ng-template>
       <div class="tab-panel">
         <app-bracket></app-bracket>
