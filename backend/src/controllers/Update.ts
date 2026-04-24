@@ -1,151 +1,192 @@
-import {Request, Response} from 'express';
-import Team, {ITeam} from "../models/Team";
-import axios from "axios";
-import {Fixtures, GetTeamResponse} from '../models/Update';
-import Participant from "../models/Participant";
-import {delay} from "rxjs";
+import Team, {ITeam} from '../models/Team';
+import Participant from '../models/Participant';
+import {FDMatch, FDStandingGroup, FootballDataClient, Stage} from '../services/footballData';
 
-export const updateParticipantsPeriodically = async () => {
-  try {
-    for await (const participant of Participant.find().populate('teams')) {
-      participant.set(sumTeamPoints(participant.teams));
-      await participant.save()
-    }
-  } catch (e) {
-    console.log("Updated Failed!");
-  }
+const STAGE_ORDER: Stage[] = [
+  'GROUP_STAGE',
+  'LAST_32',
+  'LAST_16',
+  'QUARTER_FINALS',
+  'SEMI_FINALS',
+  'THIRD_PLACE',
+  'FINAL'
+];
+
+const QUALIFICATION_RANK: Record<Stage, number> = {
+  GROUP_STAGE: 0,
+  LAST_32: 1,
+  LAST_16: 2,
+  QUARTER_FINALS: 3,
+  SEMI_FINALS: 4,
+  THIRD_PLACE: 4,
+  FINAL: 5
 };
 
-export const updateTeamsPeriodically = async () => updateAll
-
-const updateAll = async (req: Request, res: Response) => {
-  try {
-    for await(const team of Team.find()) {
-      console.log(`Updating ${team.name}...`)
-      await getTeam(team.api_id).then(
-        (data) => {
-          team.set(
-            {
-              // @ts-ignore
-              games: data.fixtures.played.total,
-              // @ts-ignore
-              wins: data.fixtures.wins.total,
-              // @ts-ignore
-              losses: data.fixtures.loses.total,
-              // @ts-ignore
-              draws: data.fixtures.draws.total,
-              // @ts-ignore
-              qualifications: getQualifications(data.fixtures, team.qualifications),
-              // @ts-ignore
-              points: getPoints(data.fixtures, team.qualifications),
-              // @ts-ignore
-              logo: data.team.logo,
-            }
-          )
-        })
-      await team.save()
-      delay(5000)
-    }
-    await updateParticipantsPeriodically()
-    res.status(201).json({message: "Updated Successfully!"});
-  } catch (error) {
-    console.log(error)
-    res.status(500).json({message: "Updated Failed!"});
-  }
-}
-
-const updateParticipants = async (_req: Request, res: Response) => {
-  try {
-    for await (const participant of Participant.find().populate('teams')) {
-      console.log(`Updating ${participant.lastName}`)
-      participant.set(sumTeamPoints(participant.teams));
-      await participant.save()
-    }
-    res.status(201).json({message: "Updated Successfully!"});
-  } catch (e) {
-    res.status(500).json({message: "Updated Failed!"});
-  }
+const QUALIFICATION_BONUS: Record<number, number> = {
+  0: 0,
+  1: 3,
+  2: 8,
+  3: 13,
+  4: 18,
+  5: 23,
+  6: 33
 };
 
-const updateTeams = async (req: Request, res: Response) => {
-  const {names} = req.body
-  try {
-    for await(const team of Team.find({name: {$in: names}})) {
-      await getTeam(team.api_id).then(
-        (data) => {
-          console.log(`Updating ${team.name}...`)
-          team.set(
-            {
-              // @ts-ignore
-              games: data.fixtures.played.total,
-              // @ts-ignore
-              wins: data.fixtures.wins.total,
-              // @ts-ignore
-              losses: data.fixtures.loses.total,
-              // @ts-ignore
-              draws: data.fixtures.draws.total,
-              // @ts-ignore
-              qualifications: getQualifications(data.fixtures, team.qualifications),
-              // @ts-ignore
-              points: getPoints(data.fixtures, team.qualifications),
-              // @ts-ignore
-              logo: data.team.logo,
-            }
-          )
-        })
-      await team.save()
-    }
-    res.status(201).json({message: "Updated Successfully!"});
-  } catch (error) {
-    console.log(error)
-    res.status(500).json({message: "Update Failed!"});
-  }
+const WINNER_BONUS = 10;
+
+const groupLetterFromStanding = (group: string): string => {
+  const match = group.match(/Group\s+([A-Z])/i);
+  return match ? match[1].toUpperCase() : group;
+};
+
+interface TeamAggregate {
+  api_id: number;
+  name: string;
+  logo: string;
+  group: string;
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  qualifications: number;
+  eliminated: boolean;
+  isChampion: boolean;
 }
 
-async function getTeam(apiId: number) {
-  try {
-    const {data} = await axios.get<GetTeamResponse>(
-      `https://api-football-v1.p.rapidapi.com/v3/teams/statistics?team=${apiId}&league=4&season=2024`,
+const computeStageByTeam = (matches: FDMatch[]): Map<number, Stage> => {
+  const best = new Map<number, Stage>();
+  for (const m of matches) {
+    for (const t of [m.homeTeam, m.awayTeam]) {
+      if (!t.id) continue;
+      const current = best.get(t.id);
+      if (!current || STAGE_ORDER.indexOf(m.stage) > STAGE_ORDER.indexOf(current)) {
+        best.set(t.id, m.stage);
+      }
+    }
+  }
+  return best;
+};
+
+const findChampionId = (matches: FDMatch[]): number | null => {
+  const final = matches.find((m) => m.stage === 'FINAL' && m.status === 'FINISHED');
+  if (!final || !final.score.winner) return null;
+  if (final.score.winner === 'HOME_TEAM' && final.homeTeam.id) return final.homeTeam.id;
+  if (final.score.winner === 'AWAY_TEAM' && final.awayTeam.id) return final.awayTeam.id;
+  return null;
+};
+
+const hasUpcomingMatch = (apiId: number, matches: FDMatch[]): boolean =>
+  matches.some(
+    (m) =>
+      m.status !== 'FINISHED' &&
+      m.status !== 'CANCELLED' &&
+      (m.homeTeam.id === apiId || m.awayTeam.id === apiId)
+  );
+
+const buildQualifications = (highestStage: Stage, isChampion: boolean): number => {
+  const rank = QUALIFICATION_RANK[highestStage] ?? 0;
+  return isChampion ? rank + 1 : rank;
+};
+
+const computePoints = (agg: TeamAggregate): number => {
+  const base = agg.wins * 3 + agg.draws;
+  const bonus = QUALIFICATION_BONUS[agg.qualifications] ?? 0;
+  const winner = agg.isChampion ? WINNER_BONUS : 0;
+  return base + bonus + winner;
+};
+
+const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamAggregate[] => {
+  const stageByTeam = computeStageByTeam(matches);
+  const championId = findChampionId(matches);
+
+  const aggregates: TeamAggregate[] = [];
+  for (const group of standings) {
+    const letter = groupLetterFromStanding(group.group);
+    for (const row of group.table) {
+      const highest = stageByTeam.get(row.team.id) ?? 'GROUP_STAGE';
+      const isChampion = row.team.id === championId;
+      const qualifications = buildQualifications(highest, isChampion);
+      const eliminated =
+        !isChampion &&
+        !hasUpcomingMatch(row.team.id, matches) &&
+        row.playedGames > 0;
+      aggregates.push({
+        api_id: row.team.id,
+        name: row.team.name,
+        logo: row.team.crest,
+        group: letter,
+        games: row.playedGames,
+        wins: row.won,
+        draws: row.draw,
+        losses: row.lost,
+        qualifications,
+        eliminated,
+        isChampion
+      });
+    }
+  }
+  return aggregates;
+};
+
+const upsertTeams = async (aggregates: TeamAggregate[]): Promise<number> => {
+  let upserted = 0;
+  for (const agg of aggregates) {
+    const points = computePoints(agg);
+    await Team.updateOne(
+      {api_id: agg.api_id},
       {
-        headers: {
-          'x-rapidapi-host': 'api-football-v1.p.rapidapi.com',
-          'x-rapidapi-key': '385acad3c4msh830d8286a1a0b75p1ded78jsna6880571e6a6'
+        $set: {
+          name: agg.name,
+          logo: agg.logo,
+          group: agg.group,
+          games: agg.games,
+          wins: agg.wins,
+          draws: agg.draws,
+          losses: agg.losses,
+          qualifications: agg.qualifications,
+          eliminated: agg.eliminated,
+          points
         }
       },
+      {upsert: true}
     );
-    return data.response;
-  } catch (error) {
-    if (axios.isAxiosError(error)) {
-      console.log('error message: ', error.message);
-      return error.message;
-    } else {
-      console.log('unexpected error: ', error);
-      return 'An unexpected error occurred';
-    }
+    upserted += 1;
   }
-}
+  return upserted;
+};
 
-const getPoints = (fixtures: Fixtures, qualifications: number): number => {
-  const qualificationRules: any = {
-    0: 0,
-    1: 2,
-    2: 4,
-    3: 6,
-    4: 8,
-    5: 13
+const recomputeParticipantPoints = async (): Promise<number> => {
+  let updated = 0;
+  for await (const participant of Participant.find().populate('teams')) {
+    const teams = (participant.teams as unknown) as ITeam[];
+    const sum = teams.reduce((acc, team) => acc + (team?.points ?? 0), 0);
+    participant.set({points: sum});
+    await participant.save();
+    updated += 1;
   }
-  return fixtures.wins.total * 3 + fixtures.draws.total + qualificationRules[getQualifications(fixtures, qualifications).toString()]
+  return updated;
+};
+
+export interface UpdateReport {
+  teamsUpserted: number;
+  participantsUpdated: number;
+  championId: number | null;
+  matchesProcessed: number;
 }
 
-const getQualifications = (fixtures: Fixtures, qualifications: number): number => {
-  return fixtures.played.total > 3 ? fixtures.played.total - 3 : qualifications
-}
+export const runUpdate = async (): Promise<UpdateReport> => {
+  const client = new FootballDataClient();
+  const [standings, matches] = await Promise.all([client.getStandings(), client.getMatches()]);
 
-const sumTeamPoints = (teams: [ITeam]): any => {
-  let sum = 0;
-  teams.forEach((team) => {
-    sum += team.points;
-  });
-  return {points: sum}
-}
-export default {updateTeams, updateParticipants, updateAll};
+  const aggregates = aggregateTeams(standings, matches);
+  const teamsUpserted = await upsertTeams(aggregates);
+  const participantsUpdated = await recomputeParticipantPoints();
+  const championId = findChampionId(matches);
+
+  return {
+    teamsUpserted,
+    participantsUpdated,
+    championId,
+    matchesProcessed: matches.length
+  };
+};

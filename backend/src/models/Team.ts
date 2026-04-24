@@ -3,14 +3,14 @@ import mongoose, {Document, Schema} from 'mongoose';
 export interface ITeam {
   api_id: number;
   name: string;
+  group: string;
   games: number;
   wins: number;
   losses: number;
   draws: number;
   points: number;
-  qualifications: number
+  qualifications: number;
   logo: string;
-
   eliminated: boolean;
 }
 
@@ -20,15 +20,16 @@ export interface ITeamModel extends ITeam, Document {
 const TeamSchema: Schema = new Schema(
   {
     name: {type: String, required: true},
-    api_id: {type: Number, required: true},
-    games: {type: Number, required: true},
-    wins: {type: Number, required: true},
-    losses: {type: Number, required: true},
-    draws: {type: Number, required: true},
-    points: {type: Number, required: true},
-    qualifications: {type: Number, required: true},
-    logo: {type: String, required: true},
-    eliminated: {type: Boolean, required: false}
+    api_id: {type: Number, required: true, unique: true, index: true},
+    group: {type: String, required: true},
+    games: {type: Number, required: true, default: 0},
+    wins: {type: Number, required: true, default: 0},
+    losses: {type: Number, required: true, default: 0},
+    draws: {type: Number, required: true, default: 0},
+    points: {type: Number, required: true, default: 0},
+    qualifications: {type: Number, required: true, default: 0},
+    logo: {type: String, required: false, default: ''},
+    eliminated: {type: Boolean, required: false, default: false}
   },
   {
     versionKey: false,
