@@ -34,8 +34,6 @@ const QUALIFICATION_BONUS: Record<number, number> = {
   6: 33
 };
 
-const WINNER_BONUS = 10;
-
 const groupLetterFromStanding = (group: string): string => {
   const match = group.match(/Group\s+([A-Z])/i);
   return match ? match[1].toUpperCase() : group;
@@ -94,10 +92,13 @@ const buildQualifications = (highestStage: Stage, isChampion: boolean): number =
 };
 
 const computePoints = (agg: TeamAggregate): number => {
+  // base = group-stage match points (W*3 + D). bonus covers every advancement
+  // tier including the +10 for winning the final (QUALIFICATION_BONUS[6]=33
+  // already folds that in via buildQualifications returning rank+1 for the
+  // champion). Do NOT add an extra WINNER_BONUS — that would double-count.
   const base = agg.wins * 3 + agg.draws;
   const bonus = QUALIFICATION_BONUS[agg.qualifications] ?? 0;
-  const winner = agg.isChampion ? WINNER_BONUS : 0;
-  return base + bonus + winner;
+  return base + bonus;
 };
 
 const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamAggregate[] => {
