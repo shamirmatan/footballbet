@@ -1,6 +1,7 @@
 import Team, {ITeam} from '../models/Team';
 import Participant from '../models/Participant';
 import TournamentState, {IMatchSummary} from '../models/TournamentState';
+import Match from '../models/Match';
 import {FDCompetition, FDMatch, FDStandingGroup, FootballDataClient, Stage} from '../services/footballData';
 
 const STAGE_ORDER: Stage[] = [
@@ -49,6 +50,9 @@ interface TeamAggregate {
   wins: number;
   draws: number;
   losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
   qualifications: number;
   eliminated: boolean;
   isChampion: boolean;
@@ -120,6 +124,9 @@ const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamA
         wins: row.won,
         draws: row.draw,
         losses: row.lost,
+        goalsFor: row.goalsFor,
+        goalsAgainst: row.goalsAgainst,
+        goalDifference: row.goalDifference,
         qualifications,
         eliminated,
         isChampion
@@ -144,6 +151,9 @@ const upsertTeams = async (aggregates: TeamAggregate[]): Promise<number> => {
           wins: agg.wins,
           draws: agg.draws,
           losses: agg.losses,
+          goalsFor: agg.goalsFor,
+          goalsAgainst: agg.goalsAgainst,
+          goalDifference: agg.goalDifference,
           qualifications: agg.qualifications,
           eliminated: agg.eliminated,
           points
@@ -239,8 +249,43 @@ const upsertTournamentState = async (
   );
 };
 
+const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
+  let upserted = 0;
+  for (const m of matches) {
+    await Match.updateOne(
+      {api_id: m.id},
+      {
+        $set: {
+          stage: m.stage,
+          group: m.group,
+          matchday: m.matchday ?? null,
+          status: m.status,
+          utcDate: m.utcDate,
+          homeTeam: {
+            api_id: m.homeTeam.id ?? null,
+            name: m.homeTeam.name ?? null,
+            logo: m.homeTeam.crest ?? null
+          },
+          awayTeam: {
+            api_id: m.awayTeam.id ?? null,
+            name: m.awayTeam.name ?? null,
+            logo: m.awayTeam.crest ?? null
+          },
+          scoreHome: m.score.fullTime.home,
+          scoreAway: m.score.fullTime.away,
+          winner: m.score.winner
+        }
+      },
+      {upsert: true}
+    );
+    upserted += 1;
+  }
+  return upserted;
+};
+
 export interface UpdateReport {
   teamsUpserted: number;
+  matchesUpserted: number;
   participantsUpdated: number;
   championId: number | null;
   matchesProcessed: number;
@@ -257,12 +302,14 @@ export const runUpdate = async (): Promise<UpdateReport> => {
 
   const aggregates = aggregateTeams(standings, matches);
   const teamsUpserted = await upsertTeams(aggregates);
+  const matchesUpserted = await upsertMatches(matches);
   const participantsUpdated = await recomputeParticipantPoints();
   await upsertTournamentState(competition, matches);
   const championId = findChampionId(matches);
 
   return {
     teamsUpserted,
+    matchesUpserted,
     participantsUpdated,
     championId,
     matchesProcessed: matches.length,

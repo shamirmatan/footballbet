@@ -6,6 +6,8 @@ import Logging from './library/Logging';
 import participantRoutes from './routes/Participant';
 import teamRoutes from './routes/Team';
 import tournamentRoutes from './routes/Tournament';
+import groupRoutes from './routes/Groups';
+import matchRoutes from './routes/Matches';
 
 const router = express();
 
@@ -53,6 +55,8 @@ const StartServer = () => {
   router.use('/api/participants', participantRoutes);
   router.use('/api/teams', teamRoutes);
   router.use('/api/tournament', tournamentRoutes);
+  router.use('/api/groups', groupRoutes);
+  router.use('/api/matches', matchRoutes);
 
   /** Error handling */
   router.use((req, res) => {

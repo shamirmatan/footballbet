@@ -8,6 +8,9 @@ export interface ITeam {
   wins: number;
   losses: number;
   draws: number;
+  goalsFor: number;
+  goalsAgainst: number;
+  goalDifference: number;
   points: number;
   qualifications: number;
   logo: string;
@@ -26,6 +29,9 @@ const TeamSchema: Schema = new Schema(
     wins: {type: Number, required: true, default: 0},
     losses: {type: Number, required: true, default: 0},
     draws: {type: Number, required: true, default: 0},
+    goalsFor: {type: Number, required: true, default: 0},
+    goalsAgainst: {type: Number, required: true, default: 0},
+    goalDifference: {type: Number, required: true, default: 0},
     points: {type: Number, required: true, default: 0},
     qualifications: {type: Number, required: true, default: 0},
     logo: {type: String, required: false, default: ''},

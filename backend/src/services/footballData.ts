@@ -33,6 +33,7 @@ export interface FDMatch {
   id: number;
   stage: Stage;
   group: string | null;
+  matchday: number | null;
   status: MatchStatus;
   utcDate: string;
   homeTeam: Partial<FDTeam> & { id: number | null; name: string | null };
