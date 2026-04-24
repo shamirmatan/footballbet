@@ -1,0 +1,24 @@
+:host {
+  display: block;
+}
+
+.home-tabs {
+  background: transparent;
+}
+
+.tab-icon {
+  vertical-align: middle;
+  margin-right: 6px;
+  font-size: 18px;
+  width: 18px;
+  height: 18px;
+}
+
+.tab-panel {
+  padding: 16px 0 0;
+}
+
+::ng-deep .home-tabs .mat-mdc-tab-header {
+  border-bottom: 1px solid var(--color-border);
+  background: var(--color-cream);
+}

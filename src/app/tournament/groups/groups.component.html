@@ -1,0 +1,40 @@
+<div class="groups">
+  <mat-spinner *ngIf="loading" class="center-spinner"></mat-spinner>
+
+  <div class="groups__grid" *ngIf="!loading">
+    <section class="group-card" *ngFor="let g of groups">
+      <header class="group-card__header">
+        <span class="group-card__title">Group {{ g.group }}</span>
+        <span class="group-card__played">{{ g.teams[0]?.games ?? 0 }}/3 MD</span>
+      </header>
+
+      <ol class="team-table">
+        <li class="team-head">
+          <span class="th-pos">#</span>
+          <span class="th-team">Team</span>
+          <span class="th-num">W</span>
+          <span class="th-num">D</span>
+          <span class="th-num">L</span>
+          <span class="th-num">GD</span>
+          <span class="th-num th-pts">Pts</span>
+        </li>
+        <li
+          class="team-row"
+          *ngFor="let team of g.teams; let i = index; trackBy: trackByApiId"
+          [ngClass]="qualificationClass(i + 1)"
+        >
+          <span class="td-pos">{{ i + 1 }}</span>
+          <span class="td-team">
+            <span class="td-team__flag"><img *ngIf="team.logo" [src]="team.logo" [alt]="team.name"></span>
+            <span class="td-team__name">{{ team.name }}</span>
+          </span>
+          <span class="td-num">{{ team.wins }}</span>
+          <span class="td-num">{{ team.draws }}</span>
+          <span class="td-num">{{ team.losses }}</span>
+          <span class="td-num">{{ team.goalDifference > 0 ? '+' : '' }}{{ team.goalDifference }}</span>
+          <span class="td-num td-pts">{{ team.points }}</span>
+        </li>
+      </ol>
+    </section>
+  </div>
+</div>

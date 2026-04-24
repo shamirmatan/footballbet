@@ -14,6 +14,9 @@ import {RouterModule} from "@angular/router";
       AngularMaterialModule,
       RouterModule,
       CommonModule,
+    ],
+    exports: [
+      ParticipantListComponent,
     ]
   }
 )

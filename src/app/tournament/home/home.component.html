@@ -1,0 +1,33 @@
+<div class="page">
+  <mat-tab-group class="home-tabs" mat-stretch-tabs="false" dynamicHeight>
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">leaderboard</mat-icon>
+        <span>Standings</span>
+      </ng-template>
+      <div class="tab-panel">
+        <app-participant-list></app-participant-list>
+      </div>
+    </mat-tab>
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">grid_view</mat-icon>
+        <span>Groups</span>
+      </ng-template>
+      <div class="tab-panel">
+        <app-groups></app-groups>
+      </div>
+    </mat-tab>
+
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon">account_tree</mat-icon>
+        <span>Bracket</span>
+      </ng-template>
+      <div class="tab-panel">
+        <app-bracket></app-bracket>
+      </div>
+    </mat-tab>
+  </mat-tab-group>
+</div>
