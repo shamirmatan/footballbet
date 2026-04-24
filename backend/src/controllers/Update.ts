@@ -1,6 +1,7 @@
 import Team, {ITeam} from '../models/Team';
 import Participant from '../models/Participant';
-import {FDMatch, FDStandingGroup, FootballDataClient, Stage} from '../services/footballData';
+import TournamentState, {IMatchSummary} from '../models/TournamentState';
+import {FDCompetition, FDMatch, FDStandingGroup, FootballDataClient, Stage} from '../services/footballData';
 
 const STAGE_ORDER: Stage[] = [
   'GROUP_STAGE',
@@ -167,26 +168,104 @@ const recomputeParticipantPoints = async (): Promise<number> => {
   return updated;
 };
 
+const toMatchSummary = (m: FDMatch): IMatchSummary => ({
+  home: m.homeTeam.name ?? 'TBD',
+  away: m.awayTeam.name ?? 'TBD',
+  homeLogo: m.homeTeam.crest,
+  awayLogo: m.awayTeam.crest,
+  utcDate: m.utcDate,
+  group: m.group,
+  stage: m.stage,
+  status: m.status,
+  scoreHome: m.score.fullTime.home,
+  scoreAway: m.score.fullTime.away
+});
+
+const deriveTournamentStage = (matches: FDMatch[]): string => {
+  const live = matches.find((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED');
+  if (live) return live.stage;
+
+  const upcoming = matches
+    .filter((m) => m.status === 'TIMED' || m.status === 'SCHEDULED')
+    .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
+  if (upcoming.length === matches.length) return 'NOT_STARTED';
+  if (upcoming.length === 0) return 'COMPLETED';
+  return upcoming[0].stage;
+};
+
+const buildTournamentState = (
+  competition: FDCompetition,
+  matches: FDMatch[]
+): {
+  stage: string;
+  currentMatchday: number | null;
+  nextMatch: IMatchSummary | null;
+  liveMatch: IMatchSummary | null;
+  seasonStart: string;
+  seasonEnd: string;
+} => {
+  const stage = deriveTournamentStage(matches);
+
+  const live = matches.find((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED');
+
+  const nextCandidate = matches
+    .filter(
+      (m) =>
+        (m.status === 'TIMED' || m.status === 'SCHEDULED') &&
+        m.homeTeam.name &&
+        m.awayTeam.name
+    )
+    .sort((a, b) => a.utcDate.localeCompare(b.utcDate))[0];
+
+  return {
+    stage,
+    currentMatchday: competition.currentSeason?.currentMatchday ?? null,
+    nextMatch: nextCandidate ? toMatchSummary(nextCandidate) : null,
+    liveMatch: live ? toMatchSummary(live) : null,
+    seasonStart: competition.currentSeason?.startDate ?? '',
+    seasonEnd: competition.currentSeason?.endDate ?? ''
+  };
+};
+
+const upsertTournamentState = async (
+  competition: FDCompetition,
+  matches: FDMatch[]
+): Promise<void> => {
+  const state = buildTournamentState(competition, matches);
+  await TournamentState.updateOne(
+    {},
+    {$set: {...state, updatedAt: new Date()}},
+    {upsert: true}
+  );
+};
+
 export interface UpdateReport {
   teamsUpserted: number;
   participantsUpdated: number;
   championId: number | null;
   matchesProcessed: number;
+  tournamentStage: string;
 }
 
 export const runUpdate = async (): Promise<UpdateReport> => {
   const client = new FootballDataClient();
-  const [standings, matches] = await Promise.all([client.getStandings(), client.getMatches()]);
+  const [competition, standings, matches] = await Promise.all([
+    client.getCompetition(),
+    client.getStandings(),
+    client.getMatches()
+  ]);
 
   const aggregates = aggregateTeams(standings, matches);
   const teamsUpserted = await upsertTeams(aggregates);
   const participantsUpdated = await recomputeParticipantPoints();
+  await upsertTournamentState(competition, matches);
   const championId = findChampionId(matches);
 
   return {
     teamsUpserted,
     participantsUpdated,
     championId,
-    matchesProcessed: matches.length
+    matchesProcessed: matches.length,
+    tournamentStage: deriveTournamentStage(matches)
   };
 };

@@ -64,6 +64,19 @@ export interface FDStandingGroup {
   table: FDStandingRow[];
 }
 
+export interface FDCompetition {
+  id: number;
+  name: string;
+  code: string;
+  currentSeason: {
+    id: number;
+    startDate: string;
+    endDate: string;
+    currentMatchday: number | null;
+    winner: unknown | null;
+  };
+}
+
 export class FootballDataClient {
   private http: AxiosInstance;
   private competition: string;
@@ -83,6 +96,11 @@ export class FootballDataClient {
   async getTeams(): Promise<FDTeam[]> {
     const {data} = await this.http.get(`/competitions/${this.competition}/teams`);
     return data.teams;
+  }
+
+  async getCompetition(): Promise<FDCompetition> {
+    const {data} = await this.http.get(`/competitions/${this.competition}`);
+    return data;
   }
 
   async getStandings(): Promise<FDStandingGroup[]> {
