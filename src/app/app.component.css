@@ -1,5 +1,7 @@
-@-ms-viewport {
-  width: device-width;
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
 }
 
 header {
@@ -9,16 +11,10 @@ header {
 }
 
 main {
+  flex: 1;
   width: 100%;
-  margin: auto;
-  min-height: calc(100vh - 95px);
-  display: flex;
-  flex-direction: column;
 }
 
 footer {
-  position: sticky;
-  bottom: 0;
-  background: white;
-  /*margin: auto*/
+  flex-shrink: 0;
 }

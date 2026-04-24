@@ -3,7 +3,7 @@
   <mat-expansion-panel *ngFor="let participant of participants" hideToggle>
     <mat-expansion-panel-header>
       <mat-panel-title>
-        <mat-icon class="icon" color="primary">looks_{{numToString(participant.position)}})</mat-icon>
+        <mat-icon class="icon" color="primary">looks_{{numToString(participant.position)}}</mat-icon>
         <div><img src="../../../assets/{{participant.lastName}}.jpg" class="image"></div>
         {{ participant.firstName }} {{participant.lastName}}
       </mat-panel-title>
