@@ -6,26 +6,22 @@
   "scripts": {
     "build": "tsc",
     "start": "node ./build/server.js",
-    "start:dev": "nodemon"
+    "start:dev": "nodemon",
+    "cron:update": "node ./build/cron/updateAll.js",
+    "cron:update:dev": "ts-node src/cron/updateAll.ts"
   },
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@types/express": "^4.17.13",
-    "@types/node": "^18.15.11",
     "axios": "^1.2.1",
     "chalk": "^4.1.2",
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
-    "mongoose": "^6.2.2",
-    "node": "^16.18.1",
-    "nodemon": "^2.0.20",
-    "rxjs": "^7.8.0"
+    "mongoose": "^6.2.2"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
     "@types/node": "^18.15.11",
-    "node": "^16.18.1",
     "nodemon": "^2.0.20",
     "ts-node": "^10.9.1",
     "typescript": "^4.9.5"
