@@ -1,6 +1,60 @@
-.span {
-  text-align: center;
-  display: inline-block;
-  width: 100%;
+.site-header {
+  background: linear-gradient(135deg, var(--color-navy-900) 0%, var(--color-navy-700) 100%);
+  color: #fff;
 }
 
+.site-header__inner {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 18px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.site-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.site-header__trophy {
+  color: var(--color-gold-500);
+  font-size: 28px;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  flex-shrink: 0;
+}
+
+.site-header__title {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.site-header__countdown {
+  background: rgba(245, 197, 24, 0.14);
+  color: var(--color-gold-500);
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid rgba(245, 197, 24, 0.35);
+  white-space: nowrap;
+}
+
+@media (max-width: 480px) {
+  .site-header__title {
+    font-size: 17px;
+  }
+  .site-header__countdown {
+    font-size: 12px;
+    padding: 4px 10px;
+  }
+}

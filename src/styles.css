@@ -1,4 +1,46 @@
-/* You can add global styles to this file, and also import other style files */
+/* Global styles */
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+:root {
+  --color-navy-900: #0b2e4e;
+  --color-navy-800: #123a63;
+  --color-navy-700: #1b4a7d;
+  --color-pitch-700: #0f5132;
+  --color-pitch-500: #16794a;
+  --color-gold-500: #f5c518;
+  --color-gold-600: #d4a613;
+  --color-ink-900: #111827;
+  --color-ink-700: #374151;
+  --color-ink-500: #6b7280;
+  --color-cream: #fafaf7;
+  --color-card: #ffffff;
+  --color-border: #e5e7eb;
+  --shadow-soft: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 16px rgba(17, 24, 39, 0.06);
+  --shadow-card-hover: 0 4px 8px rgba(17, 24, 39, 0.06), 0 12px 32px rgba(17, 24, 39, 0.08);
+  --radius-lg: 14px;
+  --radius-md: 10px;
+  --radius-pill: 999px;
+}
+
+html, body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", system-ui, sans-serif;
+  background: var(--color-cream);
+  color: var(--color-ink-900);
+}
+
+/* Layout container for the list view */
+.page {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+@media (max-width: 600px) {
+  .page {
+    padding: 16px 10px;
+  }
+}

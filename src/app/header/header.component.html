@@ -1,4 +1,9 @@
-<mat-toolbar color="primary">
-  <mat-toolbar-row><span>FIFA World Cup 2026</span></mat-toolbar-row>
-</mat-toolbar>
-
+<header class="site-header">
+  <div class="site-header__inner">
+    <div class="site-header__brand">
+      <mat-icon class="site-header__trophy" aria-hidden="true">emoji_events</mat-icon>
+      <span class="site-header__title">FIFA World Cup 2026</span>
+    </div>
+    <span class="site-header__countdown" *ngIf="countdownLabel">{{ countdownLabel }}</span>
+  </div>
+</header>

@@ -1,37 +1,153 @@
-mat-spinner {
-  margin: auto;
+:host {
+  display: block;
+}
+
+.center-spinner {
+  margin: 48px auto;
 }
 
 .info-text {
   text-align: center;
+  color: var(--color-ink-500);
+  margin-top: 48px;
 }
 
-.icon {
-  margin-right: 0.5rem;
+.participants {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
-.total-points {
-  position: absolute;
-  right: -0.1px;
-  text-align: center;
-  text-wrap: normal;
-  font-size: 15px;
-}
-
-.image {
-  border-radius: 50%;
-  height: 100%;
-  width: 100%;
-  object-fit: contain;
-}
-
-div {
-  border-radius: 50%;
-  height: 16pt;
-  width: 16pt;
-  float: left;
+.participant-card {
+  border-radius: var(--radius-lg) !important;
+  background: var(--color-card);
+  box-shadow: var(--shadow-soft) !important;
   overflow: hidden;
-  border: 1px solid #555;
-  margin-right: 0.7rem;
+  transition: box-shadow 150ms ease, transform 150ms ease;
 }
 
+.participant-card:hover {
+  box-shadow: var(--shadow-card-hover) !important;
+}
+
+.participant-card__header {
+  padding: 0 20px !important;
+}
+
+.participant-card__identity {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  flex: 1;
+}
+
+.participant-card__avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid var(--color-border);
+  background: var(--color-cream);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.participant-card__avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.participant-card__name {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink-900);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rank-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 15px;
+  flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.rank-badge--gold {
+  background: linear-gradient(135deg, #f5c518, #d4a613);
+  color: #3a2600;
+}
+
+.rank-badge--silver {
+  background: linear-gradient(135deg, #e5e7eb, #b4b9c3);
+  color: #1f2a37;
+}
+
+.rank-badge--bronze {
+  background: linear-gradient(135deg, #cd7f32, #a05a1e);
+  color: #fff;
+}
+
+.rank-badge--navy {
+  background: var(--color-navy-800);
+  color: #fff;
+}
+
+.participant-card__points {
+  margin-left: auto !important;
+  flex: 0 0 auto !important;
+}
+
+.points-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 6px 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(15, 81, 50, 0.08);
+  color: var(--color-pitch-700);
+  font-weight: 700;
+}
+
+.points-chip__value {
+  font-size: 16px;
+}
+
+.points-chip__label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.75;
+}
+
+@media (max-width: 480px) {
+  .participant-card__header {
+    padding: 0 14px !important;
+  }
+  .participant-card__identity {
+    gap: 10px;
+  }
+  .participant-card__avatar {
+    width: 40px;
+    height: 40px;
+  }
+  .participant-card__name {
+    font-size: 15px;
+  }
+  .rank-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 14px;
+  }
+}

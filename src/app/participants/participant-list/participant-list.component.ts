@@ -16,7 +16,6 @@ export class ParticipantListComponent implements OnInit, OnDestroy {
   isLoading: boolean;
   participants: Participant[] = []
   private participantsSub: Subscription;
-  private MAPPING: any = { 1: "one", 2: "two", 3: "3", 4: "4" }
 
   ngOnInit() {
     this.isLoading = true;
@@ -30,7 +29,11 @@ export class ParticipantListComponent implements OnInit, OnDestroy {
   ngOnDestroy() {
     this.participantsSub.unsubscribe()
   }
-  numToString(number: number) {
-    return this.MAPPING[number]
+
+  rankClass(position: number): string {
+    if (position === 1) return 'rank-badge--gold';
+    if (position === 2) return 'rank-badge--silver';
+    if (position === 3) return 'rank-badge--bronze';
+    return 'rank-badge--navy';
   }
 }

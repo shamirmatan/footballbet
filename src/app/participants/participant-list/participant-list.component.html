@@ -1,15 +1,26 @@
-<mat-spinner *ngIf="isLoading"></mat-spinner>
-<mat-accordion class="headers-align" multi="true" *ngIf="participants.length > 0 && !isLoading">
-  <mat-expansion-panel *ngFor="let participant of participants" hideToggle>
-    <mat-expansion-panel-header>
-      <mat-panel-title>
-        <mat-icon class="icon" color="primary">looks_{{numToString(participant.position)}}</mat-icon>
-        <div><img src="../../../assets/{{participant.lastName}}.jpg" class="image"></div>
-        {{ participant.firstName }} {{participant.lastName}}
-      </mat-panel-title>
-      <mat-panel-description class="total-points">{{participant.points}} Points</mat-panel-description>
-    </mat-expansion-panel-header>
-    <app-teams-table [teams]="participant.teams"></app-teams-table>
-  </mat-expansion-panel>
-</mat-accordion>
-<p class="info-text" *ngIf="participants.length <= 0 && !isLoading">No Participants Found!</p>
+<div class="page">
+  <mat-spinner *ngIf="isLoading" class="center-spinner"></mat-spinner>
+
+  <mat-accordion class="participants" multi="true" *ngIf="participants.length > 0 && !isLoading">
+    <mat-expansion-panel class="participant-card" *ngFor="let participant of participants" hideToggle>
+      <mat-expansion-panel-header class="participant-card__header" collapsedHeight="84px" expandedHeight="84px">
+        <mat-panel-title class="participant-card__identity">
+          <span class="rank-badge" [ngClass]="rankClass(participant.position)">{{ participant.position }}</span>
+          <span class="participant-card__avatar">
+            <img src="../../../assets/{{participant.lastName}}.jpg" [alt]="participant.firstName + ' ' + participant.lastName" />
+          </span>
+          <span class="participant-card__name">{{ participant.firstName }} {{ participant.lastName }}</span>
+        </mat-panel-title>
+        <mat-panel-description class="participant-card__points">
+          <span class="points-chip">
+            <span class="points-chip__value">{{ participant.points }}</span>
+            <span class="points-chip__label">pts</span>
+          </span>
+        </mat-panel-description>
+      </mat-expansion-panel-header>
+      <app-teams-table [teams]="participant.teams"></app-teams-table>
+    </mat-expansion-panel>
+  </mat-accordion>
+
+  <p class="info-text" *ngIf="participants.length <= 0 && !isLoading">No Participants Found!</p>
+</div>
