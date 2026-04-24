@@ -1,0 +1,58 @@
+{
+  "Shamir": [
+    "Argentina",
+    "France",
+    "Brazil",
+    "Germany",
+    "England",
+    "Portugal",
+    "Netherlands",
+    "Croatia",
+    "Morocco",
+    "Japan",
+    "United States",
+    "Canada"
+  ],
+  "Ganor": [
+    "Spain",
+    "Belgium",
+    "Uruguay",
+    "Colombia",
+    "Switzerland",
+    "Senegal",
+    "Sweden",
+    "South Korea",
+    "Mexico",
+    "Ecuador",
+    "Czechia",
+    "Scotland"
+  ],
+  "Katz": [
+    "Norway",
+    "Austria",
+    "Turkey",
+    "Egypt",
+    "Algeria",
+    "Ghana",
+    "Bosnia-Herzegovina",
+    "Panama",
+    "Paraguay",
+    "Australia",
+    "Ivory Coast",
+    "South Africa"
+  ],
+  "Gabay": [
+    "Iran",
+    "Iraq",
+    "Saudi Arabia",
+    "Qatar",
+    "New Zealand",
+    "Jordan",
+    "Uzbekistan",
+    "Tunisia",
+    "Haiti",
+    "Curaçao",
+    "Cape Verde Islands",
+    "Congo DR"
+  ]
+}
