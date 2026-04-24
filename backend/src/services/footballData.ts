@@ -40,7 +40,7 @@ export interface FDMatch {
   awayTeam: Partial<FDTeam> & { id: number | null; name: string | null };
   score: {
     winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null;
-    duration: string;
+    duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT' | null;
     fullTime: { home: number | null; away: number | null };
     halfTime: { home: number | null; away: number | null };
   };

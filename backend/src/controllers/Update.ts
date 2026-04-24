@@ -273,7 +273,8 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
           },
           scoreHome: m.score.fullTime.home,
           scoreAway: m.score.fullTime.away,
-          winner: m.score.winner
+          winner: m.score.winner,
+          duration: m.score.duration
         }
       },
       {upsert: true}
@@ -281,6 +282,77 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
     upserted += 1;
   }
   return upserted;
+};
+
+interface TotalStats {
+  games: number;
+  wins: number;
+  draws: number;
+  losses: number;
+  goalsFor: number;
+  goalsAgainst: number;
+}
+
+const aggregateTotalsFromMatches = (matches: FDMatch[]): Map<number, TotalStats> => {
+  const totals = new Map<number, TotalStats>();
+  const ensure = (id: number): TotalStats => {
+    if (!totals.has(id)) {
+      totals.set(id, {games: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0});
+    }
+    return totals.get(id)!;
+  };
+  for (const m of matches) {
+    if (m.status !== 'FINISHED') continue;
+    const homeId = m.homeTeam.id;
+    const awayId = m.awayTeam.id;
+    const gh = m.score.fullTime.home;
+    const ga = m.score.fullTime.away;
+    if (!homeId || !awayId || gh == null || ga == null) continue;
+    const h = ensure(homeId);
+    const a = ensure(awayId);
+    h.games += 1;
+    a.games += 1;
+    h.goalsFor += gh;
+    h.goalsAgainst += ga;
+    a.goalsFor += ga;
+    a.goalsAgainst += gh;
+    // Knockout matches that went to extra time or penalties were tied after
+    // 90 minutes — count as a draw for both teams. The actual advancement
+    // (and its bonus) is handled separately via the qualifications column.
+    const wentToEt = m.score.duration && m.score.duration !== 'REGULAR';
+    if (wentToEt) {
+      h.draws += 1;
+      a.draws += 1;
+    } else if (gh > ga) {
+      h.wins += 1;
+      a.losses += 1;
+    } else if (gh < ga) {
+      a.wins += 1;
+      h.losses += 1;
+    } else {
+      h.draws += 1;
+      a.draws += 1;
+    }
+  }
+  return totals;
+};
+
+const writeTotalStats = async (totals: Map<number, TotalStats>): Promise<void> => {
+  for (const [api_id, t] of totals.entries()) {
+    await Team.updateOne(
+      {api_id},
+      {
+        $set: {
+          totalGames: t.games,
+          totalWins: t.wins,
+          totalDraws: t.draws,
+          totalLosses: t.losses,
+          totalGoalsFor: t.goalsFor,
+          totalGoalsAgainst: t.goalsAgainst
+        }
+      }
+    );
+  }
 };
 
 export interface UpdateReport {
@@ -303,6 +375,7 @@ export const runUpdate = async (): Promise<UpdateReport> => {
   const aggregates = aggregateTeams(standings, matches);
   const teamsUpserted = await upsertTeams(aggregates);
   const matchesUpserted = await upsertMatches(matches);
+  await writeTotalStats(aggregateTotalsFromMatches(matches));
   const participantsUpdated = await recomputeParticipantPoints();
   await upsertTournamentState(competition, matches);
   const championId = findChampionId(matches);

@@ -19,9 +19,9 @@
       <span class="team-row__name">{{ team.name }}</span>
       <span class="team-row__group" *ngIf="team.group">Group {{ team.group }}</span>
       <span class="team-row__stats">
-        <span class="stat" title="Wins"><span class="stat__k">W</span><span class="stat__v">{{ team.wins }}</span></span>
-        <span class="stat" title="Draws"><span class="stat__k">D</span><span class="stat__v">{{ team.draws }}</span></span>
-        <span class="stat" title="Losses"><span class="stat__k">L</span><span class="stat__v">{{ team.losses }}</span></span>
+        <span class="stat" title="Wins (knockout draws via ET/pens not counted as wins)"><span class="stat__k">W</span><span class="stat__v">{{ team.totalWins }}</span></span>
+        <span class="stat" title="Draws (includes knockouts that went to ET/pens)"><span class="stat__k">D</span><span class="stat__v">{{ team.totalDraws }}</span></span>
+        <span class="stat" title="Losses"><span class="stat__k">L</span><span class="stat__v">{{ team.totalLosses }}</span></span>
         <span class="stat stat--qual" title="Knockout rounds advanced" *ngIf="team.qualifications > 0">
           <span class="stat__k">Q</span><span class="stat__v">{{ team.qualifications }}</span>
         </span>

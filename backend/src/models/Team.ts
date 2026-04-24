@@ -11,6 +11,12 @@ export interface ITeam {
   goalsFor: number;
   goalsAgainst: number;
   goalDifference: number;
+  totalGames: number;
+  totalWins: number;
+  totalDraws: number;
+  totalLosses: number;
+  totalGoalsFor: number;
+  totalGoalsAgainst: number;
   points: number;
   qualifications: number;
   logo: string;
@@ -32,6 +38,12 @@ const TeamSchema: Schema = new Schema(
     goalsFor: {type: Number, required: true, default: 0},
     goalsAgainst: {type: Number, required: true, default: 0},
     goalDifference: {type: Number, required: true, default: 0},
+    totalGames: {type: Number, required: true, default: 0},
+    totalWins: {type: Number, required: true, default: 0},
+    totalDraws: {type: Number, required: true, default: 0},
+    totalLosses: {type: Number, required: true, default: 0},
+    totalGoalsFor: {type: Number, required: true, default: 0},
+    totalGoalsAgainst: {type: Number, required: true, default: 0},
     points: {type: Number, required: true, default: 0},
     qualifications: {type: Number, required: true, default: 0},
     logo: {type: String, required: false, default: ''},

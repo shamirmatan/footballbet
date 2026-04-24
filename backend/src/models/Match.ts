@@ -18,6 +18,7 @@ export interface IMatch {
   scoreHome: number | null;
   scoreAway: number | null;
   winner: string | null;
+  duration: string | null;
 }
 
 export interface IMatchModel extends IMatch, Document {
@@ -44,7 +45,8 @@ const MatchSchema: Schema = new Schema(
     awayTeam: {type: MatchTeamSchema, required: true},
     scoreHome: {type: Number, default: null},
     scoreAway: {type: Number, default: null},
-    winner: {type: String, default: null}
+    winner: {type: String, default: null},
+    duration: {type: String, default: null}
   },
   {
     versionKey: false
