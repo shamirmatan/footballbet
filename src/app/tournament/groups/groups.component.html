@@ -32,7 +32,7 @@
           <span class="td-num">{{ team.draws }}</span>
           <span class="td-num">{{ team.losses }}</span>
           <span class="td-num">{{ team.goalDifference > 0 ? '+' : '' }}{{ team.goalDifference }}</span>
-          <span class="td-num td-pts">{{ team.points }}</span>
+          <span class="td-num td-pts">{{ team.wins * 3 + team.draws }}</span>
         </li>
       </ol>
     </section>

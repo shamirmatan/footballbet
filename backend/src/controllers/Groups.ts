@@ -10,12 +10,18 @@ export const getGroups = async (_req: Request, res: Response) => {
       byGroup[g] = byGroup[g] ?? [];
       byGroup[g].push(team);
     }
+    // Group standings use group-stage points only (wins * 3 + draws).
+    // team.points is our custom total that includes the qualification
+    // bonus and must NOT leak into the group table.
+    const groupPoints = (t: ITeam): number => t.wins * 3 + t.draws;
     const groups = Object.keys(byGroup)
       .sort()
       .map((letter) => ({
         group: letter,
         teams: byGroup[letter].sort((a, b) => {
-          if (b.points !== a.points) return b.points - a.points;
+          const ap = groupPoints(a);
+          const bp = groupPoints(b);
+          if (bp !== ap) return bp - ap;
           if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
           if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
           return a.name.localeCompare(b.name);
