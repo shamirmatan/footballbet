@@ -6,6 +6,7 @@ import {AppComponent} from './app.component';
 import {HeaderComponent} from "./header/header.component";
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {FooterComponent} from "./footer/footer";
+import {HeroComponent} from "./tournament/hero/hero.component";
 import { provideHttpClient, withInterceptorsFromDi } from "@angular/common/http";
 import {AngularMaterialModule} from "./angular-material.module";
 import {ParticipantsModule} from "./participants/participants.module";
@@ -14,6 +15,7 @@ import {ParticipantsModule} from "./participants/participants.module";
         AppComponent,
         HeaderComponent,
         FooterComponent,
+        HeroComponent,
     ],
     bootstrap: [AppComponent], imports: [AppRoutingModule,
         BrowserModule,

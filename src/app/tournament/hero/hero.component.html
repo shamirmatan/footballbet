@@ -1,0 +1,78 @@
+<section class="hero" *ngIf="state && !loading">
+  <div class="hero__inner">
+    <!-- Pre-tournament: countdown + first match -->
+    <ng-container *ngIf="isPreTournament && state.nextMatch">
+      <div class="hero__main">
+        <span class="hero__eyebrow">Countdown to kickoff</span>
+        <div class="hero__countdown">
+          <span class="hero__countdown-number">{{ daysToKickoff }}</span>
+          <span class="hero__countdown-unit">days</span>
+          <span class="hero__countdown-sep">·</span>
+          <span class="hero__countdown-number hero__countdown-number--sm">{{ hoursToKickoff }}</span>
+          <span class="hero__countdown-unit">h</span>
+        </div>
+        <p class="hero__subtitle">{{ seasonRange }}</p>
+      </div>
+
+      <div class="match-card" aria-label="First match">
+        <span class="match-card__label">First match</span>
+        <div class="match-card__teams">
+          <span class="match-card__side">
+            <img *ngIf="state.nextMatch.homeLogo" [src]="state.nextMatch.homeLogo" [alt]="state.nextMatch.home" />
+            <span class="match-card__name">{{ state.nextMatch.home }}</span>
+          </span>
+          <span class="match-card__vs">vs</span>
+          <span class="match-card__side">
+            <img *ngIf="state.nextMatch.awayLogo" [src]="state.nextMatch.awayLogo" [alt]="state.nextMatch.away" />
+            <span class="match-card__name">{{ state.nextMatch.away }}</span>
+          </span>
+        </div>
+        <span class="match-card__when">{{ formatKickoff(state.nextMatch.utcDate) }}</span>
+      </div>
+    </ng-container>
+
+    <!-- Live / in-progress tournament -->
+    <ng-container *ngIf="!isPreTournament && !isCompleted && featuredMatch">
+      <div class="hero__main">
+        <span class="hero__eyebrow">{{ stageLabel }}</span>
+        <div class="hero__stage-title">
+          <ng-container *ngIf="isLive">
+            <span class="live-dot" aria-hidden="true"></span>
+            <span>Live now</span>
+          </ng-container>
+          <ng-container *ngIf="!isLive">Next up</ng-container>
+        </div>
+        <p class="hero__subtitle" *ngIf="state.currentMatchday">Matchday {{ state.currentMatchday }}</p>
+      </div>
+
+      <div class="match-card" [class.match-card--live]="isLive">
+        <span class="match-card__label" *ngIf="isLive">LIVE</span>
+        <span class="match-card__label" *ngIf="!isLive">Next kickoff</span>
+        <div class="match-card__teams">
+          <span class="match-card__side">
+            <img *ngIf="featuredMatch.homeLogo" [src]="featuredMatch.homeLogo" [alt]="featuredMatch.home" />
+            <span class="match-card__name">{{ featuredMatch.home }}</span>
+          </span>
+          <span class="match-card__score" *ngIf="isLive">
+            {{ featuredMatch.scoreHome ?? 0 }} – {{ featuredMatch.scoreAway ?? 0 }}
+          </span>
+          <span class="match-card__vs" *ngIf="!isLive">vs</span>
+          <span class="match-card__side">
+            <img *ngIf="featuredMatch.awayLogo" [src]="featuredMatch.awayLogo" [alt]="featuredMatch.away" />
+            <span class="match-card__name">{{ featuredMatch.away }}</span>
+          </span>
+        </div>
+        <span class="match-card__when" *ngIf="!isLive">{{ formatKickoff(featuredMatch.utcDate) }}</span>
+      </div>
+    </ng-container>
+
+    <!-- Completed -->
+    <ng-container *ngIf="isCompleted">
+      <div class="hero__main hero__main--centered">
+        <span class="hero__eyebrow">Tournament complete</span>
+        <div class="hero__stage-title">🏆 World Cup 2026</div>
+        <p class="hero__subtitle">{{ seasonRange }}</p>
+      </div>
+    </ng-container>
+  </div>
+</section>
