@@ -5,6 +5,7 @@
 /tmp
 /out-tsc
 /bazel-out
+/angular
 
 # Node
 **/node_modules
@@ -48,6 +49,7 @@ Thumbs.db
 /tmp
 /out-tsc
 /bazel-out
+/angular
 
 # Node
 /node_modules
