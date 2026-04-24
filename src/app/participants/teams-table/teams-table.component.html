@@ -1,56 +1,35 @@
-<table mat-table [dataSource]="teams" class="mat-elevation-z8">
+<div class="teams-panel">
+  <div class="teams-summary">
+    <span class="teams-summary__item"><strong>{{ summary.total }}</strong> teams</span>
+    <span class="teams-summary__sep" aria-hidden="true">·</span>
+    <span class="teams-summary__item"><strong>{{ summary.advanced }}</strong> advanced</span>
+    <span class="teams-summary__sep" aria-hidden="true">·</span>
+    <span class="teams-summary__item teams-summary__item--muted"><strong>{{ summary.eliminated }}</strong> eliminated</span>
+  </div>
 
-  <!--- Note that these columns can be defined in any order.
-        The actual rendered columns are set as a property on the row definition" -->
-
-  <!-- Logo Column -->
-  <ng-container matColumnDef="logo">
-    <th class="logo-header" mat-header-cell *matHeaderCellDef></th>
-    <td class="logo-img" mat-cell *matCellDef="let element"> <img [src]="element.logo" /> </td>
-  </ng-container>
-
-  <!-- Name Column -->
-  <ng-container matColumnDef="name">
-    <th mat-header-cell *matHeaderCellDef> Team </th>
-    <td mat-cell *matCellDef="let element"> {{element.name}} </td>
-  </ng-container>
-
-  <!-- Games Column -->
-  <ng-container matColumnDef="games">
-    <th mat-header-cell *matHeaderCellDef> G </th>
-    <td mat-cell *matCellDef="let element"> {{element.games}} </td>
-  </ng-container>
-
-  <!-- Wins Column -->
-  <ng-container matColumnDef="wins">
-    <th mat-header-cell *matHeaderCellDef> W </th>
-    <td mat-cell *matCellDef="let element"> {{element.wins}} </td>
-  </ng-container>
-
-  <!-- Ties Column -->
-  <ng-container matColumnDef="draws">
-    <th mat-header-cell *matHeaderCellDef> D </th>
-    <td mat-cell *matCellDef="let element"> {{element.draws}} </td>
-  </ng-container>
-
-  <!-- Losses Column -->
-  <ng-container matColumnDef="losses">
-    <th mat-header-cell *matHeaderCellDef> L </th>
-    <td mat-cell *matCellDef="let element"> {{element.losses}} </td>
-  </ng-container>
-
-  <!-- Points Column -->
-  <ng-container matColumnDef="points">
-    <th mat-header-cell *matHeaderCellDef> Pts </th>
-    <td mat-cell *matCellDef="let element"> {{element.points}} </td>
-  </ng-container>
-
-  <!-- Next Games Column -->
-  <ng-container matColumnDef="qualifications">
-    <th mat-header-cell *matHeaderCellDef> Q </th>
-    <td mat-cell *matCellDef="let element"> {{element.qualifications}} </td>
-  </ng-container>
-
-  <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-  <tr mat-row *matRowDef="let row; columns: displayedColumns;" [ngClass]="{'make-red': row.eliminated }"></tr>
-</table>
+  <ul class="team-list">
+    <li
+      *ngFor="let team of sortedTeams"
+      class="team-row"
+      [class.team-row--eliminated]="team.eliminated"
+    >
+      <span class="team-row__flag">
+        <img [src]="team.logo" [alt]="team.name" loading="lazy" />
+      </span>
+      <span class="team-row__name">{{ team.name }}</span>
+      <span class="team-row__group" *ngIf="team.group">Group {{ team.group }}</span>
+      <span class="team-row__stats">
+        <span class="stat" title="Wins"><span class="stat__k">W</span><span class="stat__v">{{ team.wins }}</span></span>
+        <span class="stat" title="Draws"><span class="stat__k">D</span><span class="stat__v">{{ team.draws }}</span></span>
+        <span class="stat" title="Losses"><span class="stat__k">L</span><span class="stat__v">{{ team.losses }}</span></span>
+        <span class="stat stat--qual" title="Knockout rounds advanced" *ngIf="team.qualifications > 0">
+          <span class="stat__k">Q</span><span class="stat__v">{{ team.qualifications }}</span>
+        </span>
+      </span>
+      <span class="team-row__points">
+        <span class="team-row__points-value">{{ team.points }}</span>
+        <span class="team-row__points-label">pts</span>
+      </span>
+    </li>
+  </ul>
+</div>
