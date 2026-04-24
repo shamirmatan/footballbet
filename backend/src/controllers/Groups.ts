@@ -10,22 +10,14 @@ export const getGroups = async (_req: Request, res: Response) => {
       byGroup[g] = byGroup[g] ?? [];
       byGroup[g].push(team);
     }
-    // Group standings use group-stage points only (wins * 3 + draws).
-    // team.points is our custom total that includes the qualification
-    // bonus and must NOT leak into the group table.
-    const groupPoints = (t: ITeam): number => t.wins * 3 + t.draws;
+    // Order by football-data's computed position — they apply the official
+    // FIFA tiebreaker chain (head-to-head, discipline, lots), which we
+    // can't replicate from persisted stats alone.
     const groups = Object.keys(byGroup)
       .sort()
       .map((letter) => ({
         group: letter,
-        teams: byGroup[letter].sort((a, b) => {
-          const ap = groupPoints(a);
-          const bp = groupPoints(b);
-          if (bp !== ap) return bp - ap;
-          if (b.goalDifference !== a.goalDifference) return b.goalDifference - a.goalDifference;
-          if (b.goalsFor !== a.goalsFor) return b.goalsFor - a.goalsFor;
-          return a.name.localeCompare(b.name);
-        })
+        teams: byGroup[letter].sort((a, b) => (a.position || 99) - (b.position || 99))
       }));
     res.status(200).json({groups});
   } catch (err) {

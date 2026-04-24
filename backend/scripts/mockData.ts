@@ -35,6 +35,7 @@ interface TeamAccumulator {
   name: string;
   logo: string;
   group: string;
+  position: number;
   // Group-stage stats (what football-data's standings API reports)
   games: number;
   wins: number;
@@ -79,6 +80,7 @@ const mkAcc = (t: ITeam): TeamAccumulator => ({
   name: t.name,
   logo: t.logo,
   group: t.group,
+  position: 0,
   games: 0,
   wins: 0,
   draws: 0,
@@ -182,13 +184,16 @@ async function main() {
   }
   for (const list of byGroup.values()) {
     list.sort((x, y) => {
-      if (y.points !== x.points) return y.points - x.points;
+      const xp = x.wins * 3 + x.draws;
+      const yp = y.wins * 3 + y.draws;
+      if (yp !== xp) return yp - xp;
       const xgd = x.goalsFor - x.goalsAgainst;
       const ygd = y.goalsFor - y.goalsAgainst;
       if (ygd !== xgd) return ygd - xgd;
       if (y.goalsFor !== x.goalsFor) return y.goalsFor - x.goalsFor;
       return x.name.localeCompare(y.name);
     });
+    list.forEach((t, i) => (t.position = i + 1));
   }
 
   // Collect top 2 per group (24 teams)
@@ -418,6 +423,7 @@ async function main() {
       {api_id: a.api_id},
       {
         $set: {
+          position: a.position,
           games: a.games,
           wins: a.wins,
           draws: a.draws,

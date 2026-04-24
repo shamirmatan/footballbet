@@ -4,6 +4,7 @@ export interface ITeam {
   api_id: number;
   name: string;
   group: string;
+  position: number;
   games: number;
   wins: number;
   losses: number;
@@ -31,6 +32,7 @@ const TeamSchema: Schema = new Schema(
     name: {type: String, required: true},
     api_id: {type: Number, required: true, unique: true, index: true},
     group: {type: String, required: true},
+    position: {type: Number, required: true, default: 0},
     games: {type: Number, required: true, default: 0},
     wins: {type: Number, required: true, default: 0},
     losses: {type: Number, required: true, default: 0},

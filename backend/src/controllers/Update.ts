@@ -44,6 +44,7 @@ interface TeamAggregate {
   name: string;
   logo: string;
   group: string;
+  position: number;
   games: number;
   wins: number;
   draws: number;
@@ -121,6 +122,7 @@ const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamA
         name: row.team.name,
         logo: row.team.crest,
         group: letter,
+        position: row.position,
         games: row.playedGames,
         wins: row.won,
         draws: row.draw,
@@ -148,6 +150,7 @@ const upsertTeams = async (aggregates: TeamAggregate[]): Promise<number> => {
           name: agg.name,
           logo: agg.logo,
           group: agg.group,
+          position: agg.position,
           games: agg.games,
           wins: agg.wins,
           draws: agg.draws,
