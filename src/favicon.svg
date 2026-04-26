@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e3a8a"/>
+      <stop offset="1" stop-color="#0f172a"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="url(#bg)"/>
+  <g transform="translate(32 32)">
+    <circle r="20" fill="#ffffff"/>
+    <g fill="#0f172a">
+      <polygon points="0,-20 6,-13 2,-5 -2,-5 -6,-13"/>
+      <polygon points="20,-2 14,4 8,2 8,-6 14,-10"/>
+      <polygon points="-20,-2 -14,-10 -8,-6 -8,2 -14,4"/>
+      <polygon points="-12,18 -6,10 0,12 6,10 12,18 6,20 -6,20"/>
+    </g>
+    <g stroke="#0f172a" stroke-width="1.4" fill="none" stroke-linecap="round">
+      <line x1="6" y1="-13" x2="14" y2="-10"/>
+      <line x1="-6" y1="-13" x2="-14" y2="-10"/>
+      <line x1="2" y1="-5" x2="8" y2="-6"/>
+      <line x1="-2" y1="-5" x2="-8" y2="-6"/>
+      <line x1="8" y1="2" x2="6" y2="10"/>
+      <line x1="-8" y1="2" x2="-6" y2="10"/>
+      <line x1="14" y1="4" x2="12" y2="18"/>
+      <line x1="-14" y1="4" x2="-12" y2="18"/>
+      <line x1="0" y1="12" x2="0" y2="20"/>
+    </g>
+  </g>
+</svg>
