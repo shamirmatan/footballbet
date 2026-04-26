@@ -8,7 +8,30 @@
         <span class="group-card__played">{{ g.teams[0]?.games ?? 0 }}/3 MD</span>
       </header>
 
-      <ol class="team-table">
+      <div class="group-tabs" role="tablist" [attr.aria-label]="'Group ' + g.group + ' view'">
+        <button
+          type="button"
+          class="group-tabs__tab"
+          role="tab"
+          [class.group-tabs__tab--active]="isTab(g.group, 'standings')"
+          [attr.aria-selected]="isTab(g.group, 'standings')"
+          (click)="setTab(g.group, 'standings')"
+        >
+          Standings
+        </button>
+        <button
+          type="button"
+          class="group-tabs__tab"
+          role="tab"
+          [class.group-tabs__tab--active]="isTab(g.group, 'fixtures')"
+          [attr.aria-selected]="isTab(g.group, 'fixtures')"
+          (click)="setTab(g.group, 'fixtures')"
+        >
+          Fixtures
+        </button>
+      </div>
+
+      <ol class="team-table" *ngIf="isTab(g.group, 'standings')">
         <li class="team-head">
           <span class="th-pos">#</span>
           <span class="th-team">Team</span>
@@ -35,6 +58,50 @@
           <span class="td-num td-pts">{{ team.wins * 3 + team.draws }}</span>
         </li>
       </ol>
+
+      <div class="fixtures" *ngIf="isTab(g.group, 'fixtures')">
+        <p class="fixtures__empty" *ngIf="g.fixtures.length === 0">No fixtures yet.</p>
+
+        <section class="md" *ngFor="let md of g.fixtures; trackBy: trackByMatchday">
+          <h4 class="md__title">Matchday {{ md.matchday }}</h4>
+          <ul class="md__matches">
+            <li
+              class="match"
+              *ngFor="let m of md.matches; trackBy: trackByMatchId"
+              [class.match--live]="isLive(m)"
+            >
+              <div class="match__sides">
+                <div class="match__side" [class.match__side--loser]="loser(m) === 'home'">
+                  <span class="match__flag">
+                    <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name || 'TBD'">
+                  </span>
+                  <span class="match__name">{{ m.homeTeam.name || 'TBD' }}</span>
+                  <span class="match__score" *ngIf="m.scoreHome !== null">{{ m.scoreHome }}</span>
+                </div>
+                <div class="match__side" [class.match__side--loser]="loser(m) === 'away'">
+                  <span class="match__flag">
+                    <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name || 'TBD'">
+                  </span>
+                  <span class="match__name">{{ m.awayTeam.name || 'TBD' }}</span>
+                  <span class="match__score" *ngIf="m.scoreAway !== null">{{ m.scoreAway }}</span>
+                </div>
+              </div>
+              <div class="match__meta">
+                <span
+                  class="match__status"
+                  [ngClass]="{
+                    'match__status--live': isLive(m),
+                    'match__status--final': m.status === 'FINISHED'
+                  }"
+                >
+                  <span class="live-dot" *ngIf="isLive(m)" aria-hidden="true"></span>
+                  {{ matchStatusLabel(m) }}
+                </span>
+              </div>
+            </li>
+          </ul>
+        </section>
+      </div>
     </section>
   </div>
 </div>
