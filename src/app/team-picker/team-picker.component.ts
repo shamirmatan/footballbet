@@ -1,10 +1,10 @@
 import {Component, OnInit, OnDestroy} from '@angular/core';
-import {ActivatedRoute} from '@angular/router';
-import {HttpClient} from '@angular/common/http';
+import {HttpClient, HttpHeaders} from '@angular/common/http';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {forkJoin, Subscription, interval} from 'rxjs';
-import {switchMap} from 'rxjs/operators';
+import {switchMap, filter, take} from 'rxjs/operators';
 import {environment} from '../../environments/environment';
+import {AuthService} from '../services/auth.service';
 
 interface TeamFromApi {
   _id: string;
@@ -56,12 +56,50 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   constructor(
     private http: HttpClient,
     private snackBar: MatSnackBar,
-    private route: ActivatedRoute
+    public authService: AuthService
   ) {}
 
   ngOnInit() {
-    this.isAdmin = this.route.snapshot.queryParamMap.get('admin') === 'true';
+    this.authService.ready$.pipe(
+      filter(ready => ready),
+      take(1)
+    ).subscribe(() => {
+      this.authService.isAdmin$.pipe(take(1)).subscribe(isAdmin => {
+        this.isAdmin = isAdmin;
+        this.loadData();
+      });
+    });
+  }
 
+  ngOnDestroy() {
+    this.pollSub?.unsubscribe();
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+  }
+
+  signIn() {
+    this.authService.signIn().subscribe(isAdmin => {
+      this.isAdmin = isAdmin;
+      if (isAdmin) {
+        this.loadAssignments();
+        this.snackBar.open('Signed in as admin', 'Close', {duration: 3000});
+      } else {
+        this.snackBar.open('Not authorized as admin', 'Close', {duration: 3000});
+      }
+    });
+  }
+
+  signOut() {
+    this.authService.signOutUser().subscribe(() => {
+      this.isAdmin = false;
+      this.snackBar.open('Signed out', 'Close', {duration: 3000});
+    });
+  }
+
+  displayName(name: string): string {
+    return DISPLAY_NAMES[name] || name;
+  }
+
+  private loadData() {
     forkJoin({
       participantsRes: this.http.get<{participants: ParticipantFromApi[]}>(`${this.API_URL}/participants`),
       teamsRes: this.http.get<{teams: TeamFromApi[]}>(`${this.API_URL}/teams`)
@@ -102,15 +140,6 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     });
   }
 
-  ngOnDestroy() {
-    this.pollSub?.unsubscribe();
-    if (this.saveTimeout) clearTimeout(this.saveTimeout);
-  }
-
-  displayName(name: string): string {
-    return DISPLAY_NAMES[name] || name;
-  }
-
   private startPolling() {
     const pollInterval = this.isAdmin ? 10000 : 500;
     this.pollSub = interval(pollInterval).pipe(
@@ -136,6 +165,11 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     if (this.isAdmin) {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.assignments));
     }
+  }
+
+  private authHeaders(): {headers: HttpHeaders} {
+    const token = this.authService.getToken();
+    return {headers: new HttpHeaders({Authorization: `Bearer ${token}`})};
   }
 
   onAssign(teamName: string, lastName: string) {
@@ -175,9 +209,11 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
       }
 
       const updates = this.participants.map(p =>
-        this.http.patch(`${this.API_URL}/participants/update/${p.lastName}`, {
-          teams: participantTeamIds[p.lastName]
-        })
+        this.http.patch(
+          `${this.API_URL}/participants/update/${p.lastName}`,
+          {teams: participantTeamIds[p.lastName]},
+          this.authHeaders()
+        )
       );
 
       forkJoin(updates).subscribe({
@@ -244,9 +280,11 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     }
 
     const updates = this.participants.map(p =>
-      this.http.patch(`${this.API_URL}/participants/update/${p.lastName}`, {
-        teams: participantTeamIds[p.lastName]
-      })
+      this.http.patch(
+        `${this.API_URL}/participants/update/${p.lastName}`,
+        {teams: participantTeamIds[p.lastName]},
+        this.authHeaders()
+      )
     );
 
     forkJoin(updates).subscribe({

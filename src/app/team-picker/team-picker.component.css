@@ -2,6 +2,39 @@
   display: block;
 }
 
+.auth-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.google-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.google-icon {
+  width: 18px;
+  height: 18px;
+}
+
+.admin-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-pitch-700);
+  background: #e8f5e9;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+}
+
+.sign-out-btn {
+  font-size: 12px;
+}
+
 .pick-teams-page {
   max-width: 100%;
   margin: 0 auto;

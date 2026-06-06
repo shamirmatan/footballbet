@@ -8,14 +8,17 @@ import teamRoutes from './routes/Team';
 import tournamentRoutes from './routes/Tournament';
 import groupRoutes from './routes/Groups';
 import matchRoutes from './routes/Matches';
+import authRoutes from './routes/Auth';
+import {seedAdmins} from './config/firebase';
 
 const router = express();
 
 /** Connect to Mongo */
 mongoose
   .connect(config.mongo.url, {retryWrites: true, w: 'majority'})
-  .then(() => {
+  .then(async () => {
     Logging.info('Mongo connected successfully.');
+    await seedAdmins();
     StartServer();
   })
   .catch((error) => Logging.error(error));
@@ -57,6 +60,7 @@ const StartServer = () => {
   router.use('/api/tournament', tournamentRoutes);
   router.use('/api/groups', groupRoutes);
   router.use('/api/matches', matchRoutes);
+  router.use('/api/auth', authRoutes);
 
   /** Error handling */
   router.use((req, res) => {
