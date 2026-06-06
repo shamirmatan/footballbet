@@ -5,13 +5,13 @@ import {MatSnackBar} from '@angular/material/snack-bar';
 import {forkJoin, Subscription, interval} from 'rxjs';
 import {switchMap} from 'rxjs/operators';
 import {environment} from '../../environments/environment';
-import {RANK_GROUPS} from './rank-data';
 
 interface TeamFromApi {
   _id: string;
   name: string;
   logo: string;
   group: string;
+  tier: number;
 }
 
 interface ParticipantFromApi {
@@ -21,16 +21,14 @@ interface ParticipantFromApi {
   teams: TeamFromApi[];
 }
 
-const TEAM_NAME_ALIASES: Record<string, string[]> = {
-  'South Korea': ['Korea Republic', 'Korea, Republic of'],
-  'Ivory Coast': ["Côte d'Ivoire", "Cote d'Ivoire"],
-  'DR Congo': ['Congo DR', 'Democratic Republic of the Congo', 'Congo, DR'],
-  'Czechia': ['Czech Republic'],
-  'United States': ['USA', 'United States of America'],
-  'Curacao': ['Curaçao'],
-  'Cape Verde': ['Cabo Verde', 'Cape Verde Islands'],
-  'Türkiye': ['Turkey'],
-  'Bosnia & Herz.': ['Bosnia-Herzegovina', 'Bosnia and Herzegovina', 'Bosnia & Herzegovina'],
+interface RankGroup {
+  rank: number;
+  teams: TeamFromApi[];
+}
+
+const DISPLAY_NAMES: Record<string, string> = {
+  'Bosnia-Herzegovina': 'Bosnia & Herz.',
+  'Cape Verde Islands': 'Cape Verde',
 };
 
 @Component({
@@ -39,15 +37,14 @@ const TEAM_NAME_ALIASES: Record<string, string[]> = {
   styleUrls: ['./team-picker.component.css']
 })
 export class TeamPickerComponent implements OnInit, OnDestroy {
-  rankGroups = RANK_GROUPS;
+  rankGroups: RankGroup[] = [];
   participants: ParticipantFromApi[] = [];
   assignments: Record<string, string> = {};
-  teamMap: Record<string, TeamFromApi> = {};
+  teamsByName: Record<string, TeamFromApi> = {};
   participantColors: Record<string, string> = {};
   isLoading = true;
   isSaving = false;
   isAdmin = false;
-  unmatchedTeams: string[] = [];
 
   private readonly COLORS = ['#1e88e5', '#e53935', '#43a047', '#fb8c00'];
   private readonly API_URL = environment.apiUrl;
@@ -76,17 +73,18 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
         });
 
         const apiTeams = teamsRes.teams;
-        for (const group of this.rankGroups) {
-          for (const teamName of group.teams) {
-            const found = this.findApiTeam(teamName, apiTeams);
-            if (found) {
-              this.teamMap[teamName] = found;
-              this.reverseTeamMap[found._id] = teamName;
-            } else {
-              this.unmatchedTeams.push(teamName);
-            }
-          }
+        const tierMap = new Map<number, TeamFromApi[]>();
+        for (const team of apiTeams) {
+          if (!team.tier) continue;
+          this.teamsByName[team.name] = team;
+          this.reverseTeamMap[team._id] = team.name;
+          if (!tierMap.has(team.tier)) tierMap.set(team.tier, []);
+          tierMap.get(team.tier)!.push(team);
         }
+
+        this.rankGroups = Array.from(tierMap.entries())
+          .sort(([a], [b]) => a - b)
+          .map(([rank, teams]) => ({rank, teams}));
 
         if (this.isAdmin) {
           this.loadAssignments();
@@ -109,6 +107,10 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
   }
 
+  displayName(name: string): string {
+    return DISPLAY_NAMES[name] || name;
+  }
+
   private startPolling() {
     const pollInterval = this.isAdmin ? 10000 : 500;
     this.pollSub = interval(pollInterval).pipe(
@@ -124,9 +126,9 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     const newAssignments: Record<string, string> = {};
     for (const p of participants) {
       for (const team of p.teams) {
-        const displayName = this.reverseTeamMap[team._id];
-        if (displayName) {
-          newAssignments[displayName] = p.lastName;
+        const teamName = this.reverseTeamMap[team._id];
+        if (teamName) {
+          newAssignments[teamName] = p.lastName;
         }
       }
     }
@@ -134,21 +136,6 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     if (this.isAdmin) {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.assignments));
     }
-  }
-
-  private findApiTeam(displayName: string, apiTeams: TeamFromApi[]): TeamFromApi | undefined {
-    const lower = displayName.toLowerCase();
-    const match = apiTeams.find(t => t.name.toLowerCase() === lower);
-    if (match) return match;
-
-    const aliases = TEAM_NAME_ALIASES[displayName];
-    if (aliases) {
-      for (const alias of aliases) {
-        const aliasMatch = apiTeams.find(t => t.name.toLowerCase() === alias.toLowerCase());
-        if (aliasMatch) return aliasMatch;
-      }
-    }
-    return undefined;
   }
 
   onAssign(teamName: string, lastName: string) {
@@ -181,7 +168,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
       this.participants.forEach(p => participantTeamIds[p.lastName] = []);
 
       for (const [teamName, lastName] of Object.entries(this.assignments)) {
-        const team = this.teamMap[teamName];
+        const team = this.teamsByName[teamName];
         if (team) {
           participantTeamIds[lastName].push(team._id);
         }
@@ -206,7 +193,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   getAssignmentCount(lastName: string, rank: number): number {
     const group = this.rankGroups.find(g => g.rank === rank);
     if (!group) return 0;
-    return group.teams.filter(t => this.assignments[t] === lastName).length;
+    return group.teams.filter(t => this.assignments[t.name] === lastName).length;
   }
 
   getTotalCount(lastName: string): number {
@@ -224,12 +211,6 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
 
   canSave(): boolean {
     return this.getAssignedCount() === 48;
-  }
-
-  getTeamsForParticipant(lastName: string, rank: number): string[] {
-    const group = this.rankGroups.find(g => g.rank === rank);
-    if (!group) return [];
-    return group.teams.filter(t => this.assignments[t] === lastName);
   }
 
   getTeamsForParticipantAll(lastName: string): string[] {
@@ -256,7 +237,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     this.participants.forEach(p => participantTeamIds[p.lastName] = []);
 
     for (const [teamName, lastName] of Object.entries(this.assignments)) {
-      const team = this.teamMap[teamName];
+      const team = this.teamsByName[teamName];
       if (team) {
         participantTeamIds[lastName].push(team._id);
       }

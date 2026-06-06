@@ -64,4 +64,22 @@ const updateTeam = (req: Request, res: Response) => {
 };
 
 
-export default {createTeam, readTeam, readAll, updateTeam};
+const updateTeamById = (req: Request, res: Response) => {
+  const teamId = req.params.teamId;
+
+  return Team.findById(teamId)
+    .then((team) => {
+      if (team) {
+        team.set(req.body);
+        return team
+          .save()
+          .then((team) => res.status(201).json({team}))
+          .catch((error) => res.status(500).json({error}));
+      } else {
+        return res.status(404).json({message: 'not found'});
+      }
+    })
+    .catch((error) => res.status(500).json({error}));
+};
+
+export default {createTeam, readTeam, readAll, updateTeam, updateTeamById};
