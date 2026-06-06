@@ -1,4 +1,4 @@
-import {Component, OnInit, OnDestroy} from '@angular/core';
+import {Component, OnInit, OnDestroy, Input} from '@angular/core';
 import {HttpClient, HttpHeaders} from '@angular/common/http';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {forkJoin, Subscription, interval} from 'rxjs';
@@ -37,6 +37,8 @@ const DISPLAY_NAMES: Record<string, string> = {
   styleUrls: ['./team-picker.component.css']
 })
 export class TeamPickerComponent implements OnInit, OnDestroy {
+  @Input() viewerOnly = false;
+
   rankGroups: RankGroup[] = [];
   participants: ParticipantFromApi[] = [];
   assignments: Record<string, string> = {};
@@ -69,6 +71,15 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
         this.loadData();
       });
     });
+
+    this.authService.isAdmin$.subscribe(isAdmin => {
+      if (this.isAdmin !== isAdmin) {
+        this.isAdmin = isAdmin;
+        if (isAdmin) {
+          this.loadAssignments();
+        }
+      }
+    });
   }
 
   ngOnDestroy() {
@@ -79,19 +90,13 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   signIn() {
     this.authService.signIn().subscribe(isAdmin => {
       this.isAdmin = isAdmin;
-      if (isAdmin) {
-        this.loadAssignments();
-        this.snackBar.open('Signed in as admin', 'Close', {duration: 3000});
-      } else {
-        this.snackBar.open('Not authorized as admin', 'Close', {duration: 3000});
-      }
+      if (isAdmin) this.loadAssignments();
     });
   }
 
   signOut() {
     this.authService.signOutUser().subscribe(() => {
       this.isAdmin = false;
-      this.snackBar.open('Signed out', 'Close', {duration: 3000});
     });
   }
 

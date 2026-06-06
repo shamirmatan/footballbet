@@ -7,32 +7,38 @@
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
-.google-btn {
-  display: flex;
+.auth-btn {
+  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-
-.google-icon {
-  width: 18px;
-  height: 18px;
-}
-
-.admin-badge {
+  gap: 5px;
   font-size: 12px;
+  color: var(--color-ink-500);
+  background: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.auth-btn:hover {
+  border-color: var(--color-ink-500);
+}
+
+.auth-icon {
+  width: 13px;
+  height: 13px;
+}
+
+.auth-admin-badge {
+  font-size: 11px;
   font-weight: 600;
   color: var(--color-pitch-700);
   background: #e8f5e9;
-  padding: 4px 10px;
+  padding: 3px 8px;
   border-radius: var(--radius-pill);
-}
-
-.sign-out-btn {
-  font-size: 12px;
 }
 
 .pick-teams-page {

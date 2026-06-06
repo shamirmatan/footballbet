@@ -18,14 +18,10 @@ const verify = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({message: 'No email in token'});
     }
 
-    const emailLower = email.toLowerCase();
-    const adminUser = await AdminUser.findOne({email: emailLower});
-    const allAdmins = await AdminUser.find().lean();
+    const adminUser = await AdminUser.findOne({email: email.toLowerCase()});
     return res.status(200).json({
       isAdmin: !!adminUser,
-      email,
-      emailLower,
-      adminsInDb: allAdmins.map(a => a.email),
+      email
     });
   } catch {
     return res.status(401).json({message: 'Invalid token'});

@@ -66,15 +66,9 @@ export class AuthService {
           headers: {Authorization: `Bearer ${token}`}
         })
       ),
-      tap((res: any) => {
-        console.log('Auth verify response:', res);
-        this.isAdminSubject.next(res.isAdmin);
-      }),
+      tap((res) => this.isAdminSubject.next(res.isAdmin)),
       switchMap((res) => of(res.isAdmin)),
-      catchError((err) => {
-        console.error('Auth verify error:', err);
-        return of(false);
-      })
+      catchError(() => of(false))
     );
   }
 
