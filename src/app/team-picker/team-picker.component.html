@@ -1,0 +1,93 @@
+<div class="page pick-teams-page">
+  <h1 class="page-title">Pick Your Teams</h1>
+
+  <mat-spinner *ngIf="isLoading" class="center-spinner"></mat-spinner>
+
+  <div *ngIf="!isLoading && unmatchedTeams.length > 0" class="warning-banner">
+    <mat-icon>warning</mat-icon>
+    <span>Teams not found in database: {{ unmatchedTeams.join(', ') }}</span>
+  </div>
+
+  <div *ngIf="!isLoading" class="layout">
+    <div class="main-content">
+      <section class="rank-section" *ngFor="let group of rankGroups">
+        <h2 class="rank-title">Rank {{ group.rank }}</h2>
+        <div class="teams-grid">
+          <div class="team-row" *ngFor="let team of group.teams"
+               [style.border-left-color]="getAssignmentColor(team)">
+            <span class="team-info">
+              <img *ngIf="teamMap[team]?.logo" [src]="teamMap[team].logo" [alt]="team" class="team-flag">
+              <span class="team-name">{{ team }}</span>
+              <span *ngIf="teamMap[team]?.group" class="team-group">{{ teamMap[team].group }}</span>
+            </span>
+            <mat-form-field appearance="outline" class="team-select">
+              <mat-select [value]="assignments[team] || ''"
+                          (selectionChange)="onAssign(team, $event.value)"
+                          placeholder="Assign...">
+                <mat-select-trigger>
+                  <span class="option-content" *ngIf="assignments[team]">
+                    <img class="option-avatar" src="assets/{{ assignments[team] }}.jpg" [alt]="assignments[team]">
+                    <span>{{ getFullName(assignments[team]) }}</span>
+                  </span>
+                  <span *ngIf="!assignments[team]">Unassigned</span>
+                </mat-select-trigger>
+                <mat-option value="">Unassigned</mat-option>
+                <mat-option *ngFor="let p of participants"
+                            [value]="p.lastName"
+                            [disabled]="isParticipantDisabledForTeam(p.lastName, group.rank, team)">
+                  <span class="option-content">
+                    <img class="option-avatar" src="assets/{{ p.lastName }}.jpg" [alt]="p.firstName">
+                    <span>{{ p.firstName }}</span>
+                  </span>
+                </mat-option>
+              </mat-select>
+            </mat-form-field>
+          </div>
+        </div>
+      </section>
+
+      <div class="summary-bar">
+        <div class="summary-participant" *ngFor="let p of participants">
+          <span class="summary-dot" [style.background]="participantColors[p.lastName]"></span>
+          <span class="summary-name">{{ p.firstName }}</span>
+          <span class="summary-count">{{ getTotalCount(p.lastName) }}/12</span>
+        </div>
+        <span class="summary-total">{{ getAssignedCount() }}/48 assigned</span>
+      </div>
+
+      <button mat-raised-button color="primary"
+              class="save-btn"
+              [disabled]="!canSave() || isSaving"
+              (click)="save()">
+        <mat-spinner *ngIf="isSaving" diameter="20"></mat-spinner>
+        <span *ngIf="!isSaving">Save Assignments</span>
+      </button>
+    </div>
+
+    <aside class="sidebar">
+      <h3 class="sidebar-title">Picked Teams</h3>
+      <div class="sidebar-participants">
+        <div class="sidebar-card" *ngFor="let p of participants"
+             [style.border-top-color]="participantColors[p.lastName]">
+          <div class="sidebar-card-header">
+            <img class="picked-avatar" src="assets/{{ p.lastName }}.jpg" [alt]="p.firstName">
+            <span class="picked-name">{{ p.firstName }}</span>
+            <span class="picked-count-chip"
+                  [style.background]="participantColors[p.lastName] + '18'"
+                  [style.color]="participantColors[p.lastName]">
+              {{ getTotalCount(p.lastName) }}/12
+            </span>
+          </div>
+          <div class="sidebar-card-teams">
+            <span class="picked-team-chip" *ngFor="let team of getTeamsForParticipantAll(p.lastName)">
+              <img *ngIf="teamMap[team]?.logo" [src]="teamMap[team].logo" class="picked-team-flag">
+              {{ team }}
+              <span *ngIf="teamMap[team]?.group" class="picked-team-group">{{ teamMap[team].group }}</span>
+            </span>
+            <span class="picked-empty" *ngIf="getTotalCount(p.lastName) === 0">No teams yet</span>
+          </div>
+        </div>
+      </div>
+    </aside>
+  </div>
+</div>

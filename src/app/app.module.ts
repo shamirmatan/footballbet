@@ -13,6 +13,7 @@ import {HeroComponent} from "./tournament/hero/hero.component";
 import {HomeComponent} from "./tournament/home/home.component";
 import {GroupsComponent} from "./tournament/groups/groups.component";
 import {BracketComponent} from "./tournament/bracket/bracket.component";
+import {TeamPickerComponent} from "./team-picker/team-picker.component";
 
 @NgModule({ declarations: [
         AppComponent,
@@ -22,6 +23,7 @@ import {BracketComponent} from "./tournament/bracket/bracket.component";
         HomeComponent,
         GroupsComponent,
         BracketComponent,
+        TeamPickerComponent,
     ],
     bootstrap: [AppComponent], imports: [AppRoutingModule,
         BrowserModule,
