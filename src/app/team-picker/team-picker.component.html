@@ -1,5 +1,5 @@
-<div class="page pick-teams-page">
-  <h1 class="page-title">Pick Your Teams</h1>
+<div class="pick-teams-page">
+  <h1 *ngIf="isAdmin" class="page-title">Pick Your Teams</h1>
 
   <mat-spinner *ngIf="isLoading" class="center-spinner"></mat-spinner>
 
@@ -20,7 +20,7 @@
               <span class="team-name">{{ team }}</span>
               <span *ngIf="teamMap[team]?.group" class="team-group">{{ teamMap[team].group }}</span>
             </span>
-            <mat-form-field appearance="outline" class="team-select">
+            <mat-form-field appearance="outline" class="team-select" *ngIf="isAdmin">
               <mat-select [value]="assignments[team] || ''"
                           (selectionChange)="onAssign(team, $event.value)"
                           placeholder="Assign...">
@@ -42,25 +42,23 @@
                 </mat-option>
               </mat-select>
             </mat-form-field>
+            <span *ngIf="!isAdmin" class="team-assigned-viewer">
+              <span class="option-content" *ngIf="assignments[team]">
+                <img class="option-avatar" src="assets/{{ assignments[team] }}.jpg" [alt]="assignments[team]">
+                <span>{{ getFullName(assignments[team]) }}</span>
+              </span>
+              <span *ngIf="!assignments[team]" class="unassigned-label">—</span>
+            </span>
           </div>
         </div>
       </section>
 
-      <div class="summary-bar">
-        <div class="summary-participant" *ngFor="let p of participants">
-          <span class="summary-dot" [style.background]="participantColors[p.lastName]"></span>
-          <span class="summary-name">{{ p.firstName }}</span>
-          <span class="summary-count">{{ getTotalCount(p.lastName) }}/12</span>
-        </div>
-        <span class="summary-total">{{ getAssignedCount() }}/48 assigned</span>
-      </div>
-
-      <button mat-raised-button color="primary"
+      <button *ngIf="isAdmin" mat-raised-button color="primary"
               class="save-btn"
               [disabled]="!canSave() || isSaving"
               (click)="save()">
         <mat-spinner *ngIf="isSaving" diameter="20"></mat-spinner>
-        <span *ngIf="!isSaving">Save Assignments</span>
+        <span *ngIf="!isSaving">Save</span>
       </button>
     </div>
 

@@ -54,6 +54,10 @@
   }
 }
 
+::ng-deep .page--wide {
+  max-width: 1200px !important;
+}
+
 @media (max-width: 360px) {
   .tab-icon {
     display: none;

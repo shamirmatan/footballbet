@@ -3,9 +3,9 @@
 }
 
 .pick-teams-page {
-  max-width: 1200px;
+  max-width: 100%;
   margin: 0 auto;
-  padding: 24px 16px 120px;
+  padding: 24px 0 120px;
 }
 
 .page-title {
@@ -41,7 +41,8 @@
 }
 
 .sidebar {
-  width: 300px;
+  width: 280px;
+  min-width: 280px;
   flex-shrink: 0;
   position: sticky;
   top: 16px;
@@ -274,6 +275,35 @@
   height: 24px;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.live-badge {
+  text-align: center;
+  color: var(--color-pitch-700);
+  font-size: 13px;
+  font-weight: 500;
+  margin: -20px 0 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.live-icon {
+  font-size: 16px;
+  height: 16px;
+  width: 16px;
+}
+
+.team-assigned-viewer {
+  min-width: 170px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.unassigned-label {
+  color: var(--color-ink-500);
 }
 
 .center-spinner {

@@ -1,7 +1,9 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnInit, OnDestroy} from '@angular/core';
+import {ActivatedRoute} from '@angular/router';
 import {HttpClient} from '@angular/common/http';
 import {MatSnackBar} from '@angular/material/snack-bar';
-import {forkJoin} from 'rxjs';
+import {forkJoin, Subscription, interval} from 'rxjs';
+import {switchMap} from 'rxjs/operators';
 import {environment} from '../../environments/environment';
 import {RANK_GROUPS} from './rank-data';
 
@@ -36,7 +38,7 @@ const TEAM_NAME_ALIASES: Record<string, string[]> = {
   templateUrl: './team-picker.component.html',
   styleUrls: ['./team-picker.component.css']
 })
-export class TeamPickerComponent implements OnInit {
+export class TeamPickerComponent implements OnInit, OnDestroy {
   rankGroups = RANK_GROUPS;
   participants: ParticipantFromApi[] = [];
   assignments: Record<string, string> = {};
@@ -44,15 +46,25 @@ export class TeamPickerComponent implements OnInit {
   participantColors: Record<string, string> = {};
   isLoading = true;
   isSaving = false;
+  isAdmin = false;
   unmatchedTeams: string[] = [];
 
   private readonly COLORS = ['#1e88e5', '#e53935', '#43a047', '#fb8c00'];
   private readonly API_URL = environment.apiUrl;
   private readonly STORAGE_KEY = 'team-picker-assignments';
+  private reverseTeamMap: Record<string, string> = {};
+  private pollSub: Subscription | null = null;
+  private saveTimeout: any = null;
 
-  constructor(private http: HttpClient, private snackBar: MatSnackBar) {}
+  constructor(
+    private http: HttpClient,
+    private snackBar: MatSnackBar,
+    private route: ActivatedRoute
+  ) {}
 
   ngOnInit() {
+    this.isAdmin = this.route.snapshot.queryParamMap.get('admin') === 'true';
+
     forkJoin({
       participantsRes: this.http.get<{participants: ParticipantFromApi[]}>(`${this.API_URL}/participants`),
       teamsRes: this.http.get<{teams: TeamFromApi[]}>(`${this.API_URL}/teams`)
@@ -69,20 +81,59 @@ export class TeamPickerComponent implements OnInit {
             const found = this.findApiTeam(teamName, apiTeams);
             if (found) {
               this.teamMap[teamName] = found;
+              this.reverseTeamMap[found._id] = teamName;
             } else {
               this.unmatchedTeams.push(teamName);
             }
           }
         }
 
-        this.loadAssignments();
+        if (this.isAdmin) {
+          this.loadAssignments();
+        } else {
+          this.rebuildAssignmentsFromParticipants(participantsRes.participants);
+        }
+
         this.isLoading = false;
+        this.startPolling();
       },
       error: () => {
         this.isLoading = false;
         this.snackBar.open('Error loading data', 'Close', {duration: 5000});
       }
     });
+  }
+
+  ngOnDestroy() {
+    this.pollSub?.unsubscribe();
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+  }
+
+  private startPolling() {
+    const pollInterval = this.isAdmin ? 10000 : 500;
+    this.pollSub = interval(pollInterval).pipe(
+      switchMap(() => this.http.get<{participants: ParticipantFromApi[]}>(`${this.API_URL}/participants`))
+    ).subscribe(res => {
+      if (!this.isSaving) {
+        this.rebuildAssignmentsFromParticipants(res.participants);
+      }
+    });
+  }
+
+  private rebuildAssignmentsFromParticipants(participants: ParticipantFromApi[]) {
+    const newAssignments: Record<string, string> = {};
+    for (const p of participants) {
+      for (const team of p.teams) {
+        const displayName = this.reverseTeamMap[team._id];
+        if (displayName) {
+          newAssignments[displayName] = p.lastName;
+        }
+      }
+    }
+    this.assignments = newAssignments;
+    if (this.isAdmin) {
+      localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.assignments));
+    }
   }
 
   private findApiTeam(displayName: string, apiTeams: TeamFromApi[]): TeamFromApi | undefined {
@@ -107,6 +158,7 @@ export class TeamPickerComponent implements OnInit {
       delete this.assignments[teamName];
     }
     this.saveAssignments();
+    this.autoSaveToBackend();
   }
 
   private saveAssignments() {
@@ -118,6 +170,37 @@ export class TeamPickerComponent implements OnInit {
     if (saved) {
       this.assignments = JSON.parse(saved);
     }
+  }
+
+  private autoSaveToBackend() {
+    if (this.saveTimeout) clearTimeout(this.saveTimeout);
+    this.saveTimeout = setTimeout(() => {
+      this.isSaving = true;
+
+      const participantTeamIds: Record<string, string[]> = {};
+      this.participants.forEach(p => participantTeamIds[p.lastName] = []);
+
+      for (const [teamName, lastName] of Object.entries(this.assignments)) {
+        const team = this.teamMap[teamName];
+        if (team) {
+          participantTeamIds[lastName].push(team._id);
+        }
+      }
+
+      const updates = this.participants.map(p =>
+        this.http.patch(`${this.API_URL}/participants/update/${p.lastName}`, {
+          teams: participantTeamIds[p.lastName]
+        })
+      );
+
+      forkJoin(updates).subscribe({
+        next: () => { this.isSaving = false; },
+        error: () => {
+          this.isSaving = false;
+          this.snackBar.open('Error syncing', 'Close', {duration: 3000});
+        }
+      });
+    }, 500);
   }
 
   getAssignmentCount(lastName: string, rank: number): number {
