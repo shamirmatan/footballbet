@@ -28,4 +28,9 @@ const verify = async (req: AuthRequest, res: Response) => {
   }
 };
 
-export default {verify};
+const listAdmins = async (req: AuthRequest, res: Response) => {
+  const admins = await AdminUser.find().lean();
+  return res.status(200).json({admins: admins.map(a => a.email)});
+};
+
+export default {verify, listAdmins};
