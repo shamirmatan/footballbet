@@ -12,7 +12,11 @@
     </ng-container>
   </div>
 
-  <h1 *ngIf="isAdmin" class="page-title">Pick Your Teams</h1>
+  <h1 *ngIf="canEdit" class="page-title">Pick Your Teams</h1>
+
+  <div *ngIf="isAdmin && draftLocked" class="draft-locked-banner">
+    🔒 The draft is locked. Team assignments are final and can no longer be edited.
+  </div>
 
   <mat-spinner *ngIf="isLoading" class="center-spinner"></mat-spinner>
 
@@ -28,7 +32,7 @@
               <span class="team-name">{{ displayName(team.name) }}</span>
               <span *ngIf="team.group" class="team-group">{{ team.group }}</span>
             </span>
-            <mat-form-field appearance="outline" class="team-select" *ngIf="isAdmin">
+            <mat-form-field appearance="outline" class="team-select" *ngIf="canEdit">
               <mat-select [value]="assignments[team.name] || ''"
                           (selectionChange)="onAssign(team.name, $event.value)"
                           placeholder="Assign...">
@@ -50,7 +54,7 @@
                 </mat-option>
               </mat-select>
             </mat-form-field>
-            <span *ngIf="!isAdmin" class="team-assigned-viewer">
+            <span *ngIf="!canEdit" class="team-assigned-viewer">
               <span class="option-content" *ngIf="assignments[team.name]">
                 <img class="option-avatar" src="assets/{{ assignments[team.name] }}.jpg" [alt]="assignments[team.name]">
                 <span>{{ getFullName(assignments[team.name]) }}</span>
@@ -61,7 +65,7 @@
         </div>
       </section>
 
-      <button *ngIf="isAdmin" mat-raised-button color="primary"
+      <button *ngIf="canEdit" mat-raised-button color="primary"
               class="save-btn"
               [disabled]="!canSave() || isSaving"
               (click)="save()">

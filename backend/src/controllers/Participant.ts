@@ -1,6 +1,7 @@
 import {Request, Response} from 'express';
 import mongoose from 'mongoose';
 import Participant from '../models/Participant';
+import {config} from '../config/config';
 
 const createParticipant = (req: Request, res: Response) => {
   const {firstName, lastName} = req.body;
@@ -37,6 +38,10 @@ const readAll = (req: Request, res: Response) => {
 };
 
 const updateParticipant = (req: Request, res: Response) => {
+  if (config.draftLocked) {
+    return res.status(423).json({message: 'Draft is locked. Team assignments can no longer be changed.'});
+  }
+
   const lastName = req.params.participantLastName
   const participantLastName = lastName.charAt(0).toUpperCase() + lastName.slice(1);
 

@@ -47,6 +47,12 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   isLoading = true;
   isSaving = false;
   isAdmin = false;
+  draftLocked = false;
+
+  /** Edit controls show only for an admin while the draft is still open. */
+  get canEdit(): boolean {
+    return this.isAdmin && !this.draftLocked;
+  }
 
   private readonly COLORS = ['#1e88e5', '#e53935', '#43a047', '#fb8c00'];
   private readonly API_URL = environment.apiUrl;
@@ -75,7 +81,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     this.authService.isAdmin$.subscribe(isAdmin => {
       if (this.isAdmin !== isAdmin) {
         this.isAdmin = isAdmin;
-        if (isAdmin) {
+        if (this.canEdit) {
           this.loadAssignments();
         }
       }
@@ -90,7 +96,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   signIn() {
     this.authService.signIn().subscribe(isAdmin => {
       this.isAdmin = isAdmin;
-      if (isAdmin) this.loadAssignments();
+      if (this.canEdit) this.loadAssignments();
     });
   }
 
@@ -107,9 +113,11 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   private loadData() {
     forkJoin({
       participantsRes: this.http.get<{participants: ParticipantFromApi[]}>(`${this.API_URL}/participants`),
-      teamsRes: this.http.get<{teams: TeamFromApi[]}>(`${this.API_URL}/teams`)
+      teamsRes: this.http.get<{teams: TeamFromApi[]}>(`${this.API_URL}/teams`),
+      tournamentRes: this.http.get<{draftLocked?: boolean}>(`${this.API_URL}/tournament`)
     }).subscribe({
-      next: ({participantsRes, teamsRes}) => {
+      next: ({participantsRes, teamsRes, tournamentRes}) => {
+        this.draftLocked = tournamentRes?.draftLocked ?? false;
         this.participants = participantsRes.participants;
         this.participants.forEach((p, i) => {
           this.participantColors[p.lastName] = this.COLORS[i % this.COLORS.length];
@@ -129,7 +137,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
           .sort(([a], [b]) => a - b)
           .map(([rank, teams]) => ({rank, teams}));
 
-        if (this.isAdmin) {
+        if (this.canEdit) {
           this.loadAssignments();
         } else {
           this.rebuildAssignmentsFromParticipants(participantsRes.participants);
@@ -146,7 +154,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   }
 
   private startPolling() {
-    const pollInterval = this.isAdmin ? 10000 : 500;
+    const pollInterval = this.canEdit ? 10000 : 500;
     this.pollSub = interval(pollInterval).pipe(
       switchMap(() => this.http.get<{participants: ParticipantFromApi[]}>(`${this.API_URL}/participants`))
     ).subscribe(res => {
@@ -167,7 +175,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
       }
     }
     this.assignments = newAssignments;
-    if (this.isAdmin) {
+    if (this.canEdit) {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(this.assignments));
     }
   }

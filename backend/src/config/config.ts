@@ -11,6 +11,10 @@ const FOOTBALL_DATA_API_KEY = process.env.FOOTBALL_DATA_API_KEY || '';
 const FOOTBALL_DATA_BASE_URL = process.env.FOOTBALL_DATA_BASE_URL || 'https://api.football-data.org/v4';
 const FOOTBALL_DATA_COMPETITION = process.env.FOOTBALL_DATA_COMPETITION || 'WC';
 
+// Once the draft is final, lock it so no one — admins included — can change
+// team assignments. Defaults to locked; set DRAFT_LOCKED="false" to reopen.
+const DRAFT_LOCKED = (process.env.DRAFT_LOCKED || 'true').toLowerCase() !== 'false';
+
 export const config = {
     mongo: {
         username: MONGO_USERNAME,
@@ -24,5 +28,6 @@ export const config = {
         apiKey: FOOTBALL_DATA_API_KEY,
         baseUrl: FOOTBALL_DATA_BASE_URL,
         competition: FOOTBALL_DATA_COMPETITION
-    }
+    },
+    draftLocked: DRAFT_LOCKED
 };
