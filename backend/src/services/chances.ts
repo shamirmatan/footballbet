@@ -265,3 +265,92 @@ export function simulateKnockout(
   result.get(bracket[0])!.qual = 6;
   return result;
 }
+
+// --- participant scoring & top-level Monte Carlo --------------------------
+
+export interface SimParticipant {
+  lastName: string;
+  teamIds: number[];
+}
+
+export interface ChancesOptions {
+  runs?: number;
+  seed?: number;
+}
+
+const DEFAULT_RUNS = 20000;
+
+/** One simulated tournament -> total points per team id. */
+function simulateOnce(
+  teams: SimTeam[],
+  groupMatches: SimMatch[],
+  rng: Rng
+): Map<number, number> {
+  const ratings = ratingByTeam(teams);
+  const tables = simulateGroupStage(teams, groupMatches, rng);
+
+  // group match points per team
+  const points = new Map<number, number>();
+  const groupQual = new Map<number, number>(); // 0 = out, 1 = reached R32
+  for (const [, list] of tables) {
+    for (const r of list) {
+      points.set(r.teamId, r.w * 3 + r.d);
+      groupQual.set(r.teamId, 0);
+    }
+  }
+
+  const qualifiers = selectQualifiers(tables);
+  for (const q of qualifiers) groupQual.set(q.teamId, 1);
+
+  const ko = simulateKnockout(qualifiers, ratings, rng);
+  for (const [teamId, res] of ko) {
+    points.set(teamId, (points.get(teamId) ?? 0) + res.koWins * 3 + res.koDraws);
+  }
+
+  // final points = group+KO match points + advancement bonus, with the real
+  // already-banked qualifications as a floor (and eliminated teams capped).
+  const totals = new Map<number, number>();
+  for (const t of teams) {
+    const simQual = ko.get(t.api_id)?.qual ?? groupQual.get(t.api_id) ?? 0;
+    const floored = Math.max(simQual, t.achievedQual);
+    const qual = t.eliminated ? t.achievedQual : floored;
+    totals.set(t.api_id, (points.get(t.api_id) ?? 0) + bonusForQual(qual));
+  }
+  return totals;
+}
+
+/** Run the Monte Carlo and return each participant's win % (0..100). */
+export function computeChances(
+  teams: SimTeam[],
+  participants: SimParticipant[],
+  groupMatches: SimMatch[],
+  opts: ChancesOptions = {}
+): Record<string, number> {
+  const runs = opts.runs ?? DEFAULT_RUNS;
+  const rng = mulberry32(opts.seed ?? 1);
+  const wins = new Map<string, number>();
+  for (const p of participants) wins.set(p.lastName, 0);
+
+  for (let i = 0; i < runs; i++) {
+    const totals = simulateOnce(teams, groupMatches, rng);
+    let best = -Infinity;
+    let leaders: string[] = [];
+    for (const p of participants) {
+      const score = p.teamIds.reduce((acc, id) => acc + (totals.get(id) ?? 0), 0);
+      if (score > best) {
+        best = score;
+        leaders = [p.lastName];
+      } else if (score === best) {
+        leaders.push(p.lastName);
+      }
+    }
+    const share = 1 / leaders.length;
+    for (const name of leaders) wins.set(name, wins.get(name)! + share);
+  }
+
+  const out: Record<string, number> = {};
+  for (const p of participants) {
+    out[p.lastName] = Math.round((wins.get(p.lastName)! / runs) * 100);
+  }
+  return out;
+}

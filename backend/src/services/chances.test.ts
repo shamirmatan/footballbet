@@ -155,3 +155,59 @@ describe('simulateKnockout', () => {
     expect([...a.entries()]).toEqual([...b.entries()]);
   });
 });
+
+import {SimParticipant, computeChances} from './chances';
+
+describe('computeChances', () => {
+  // Build a full 48-team tournament (12 groups of 4) with tiered strengths.
+  function fullTournament() {
+    const letters = 'ABCDEFGHIJKL'.split('');
+    const teams: SimTeam[] = [];
+    const matches: SimMatch[] = [];
+    let id = 1;
+    for (const g of letters) {
+      const ids = [id, id + 1, id + 2, id + 3];
+      // tiers 1..4 within each group so positions are strength-ordered
+      teams.push(team(ids[0], g, 1), team(ids[1], g, 2), team(ids[2], g, 4), team(ids[3], g, 6));
+      // all matches unplayed (status TIMED)
+      const pair = (h: number, a: number): SimMatch => ({
+        group: g, status: 'TIMED', homeId: h, awayId: a, scoreHome: null, scoreAway: null,
+      });
+      matches.push(
+        pair(ids[0], ids[1]), pair(ids[2], ids[3]),
+        pair(ids[0], ids[2]), pair(ids[1], ids[3]),
+        pair(ids[0], ids[3]), pair(ids[1], ids[2]),
+      );
+      id += 4;
+    }
+    return {teams, matches};
+  }
+
+  it('returns percentages that sum to ~100 across participants', () => {
+    const {teams, matches} = fullTournament();
+    const participants: SimParticipant[] = [0, 1, 2, 3].map((p) => ({
+      lastName: `P${p}`,
+      teamIds: teams.filter((_, i) => i % 4 === p).map((t) => t.api_id),
+    }));
+    const chances = computeChances(teams, participants, matches, {runs: 2000, seed: 5});
+    const sum = Object.values(chances).reduce((a, b) => a + b, 0);
+    expect(sum).toBeGreaterThan(98);
+    expect(sum).toBeLessThan(102);
+  });
+
+  it('gives the participant holding all strongest teams the highest chance', () => {
+    const {teams, matches} = fullTournament();
+    const tier1 = teams.filter((t) => t.tier === 1).map((t) => t.api_id);
+    const rest = teams.filter((t) => t.tier !== 1).map((t) => t.api_id);
+    const participants: SimParticipant[] = [
+      {lastName: 'Strong', teamIds: [...tier1, ...rest.slice(0, 0)]},
+      {lastName: 'A', teamIds: rest.slice(0, 12)},
+      {lastName: 'B', teamIds: rest.slice(12, 24)},
+      {lastName: 'C', teamIds: rest.slice(24, 36)},
+    ];
+    const chances = computeChances(teams, participants, matches, {runs: 2000, seed: 5});
+    expect(chances['Strong']).toBeGreaterThan(chances['A']);
+    expect(chances['Strong']).toBeGreaterThan(chances['B']);
+    expect(chances['Strong']).toBeGreaterThan(chances['C']);
+  });
+});
