@@ -184,3 +184,84 @@ export function selectQualifiers(tables: Map<string, GroupRow[]>): Qualifier[] {
   }
   return q;
 }
+
+// --- knockout simulation (Option A: approximate seeded bracket) -----------
+
+export interface KnockoutResult {
+  koWins: number; // regulation KO wins (3 pts each)
+  koDraws: number; // KO ties decided on pens (1 pt each)
+  qual: number; // highest qualifications reached (1..6)
+}
+
+/** Standard 1-based seed order for a bracket of size n (power of two). */
+function seedOrder(n: number): number[] {
+  let seeds = [1, 2];
+  while (seeds.length < n) {
+    const sum = seeds.length * 2 + 1;
+    const next: number[] = [];
+    for (const s of seeds) {
+      next.push(s);
+      next.push(sum - s);
+    }
+    seeds = next;
+  }
+  return seeds;
+}
+
+type QualLite = {teamId: number; finishPos: 1 | 2 | 3};
+
+/** Simulate the 32-team knockout; return per-team KO points + stage reached. */
+export function simulateKnockout(
+  qualifiers: QualLite[],
+  ratings: Map<number, number>,
+  rng: Rng
+): Map<number, KnockoutResult> {
+  const result = new Map<number, KnockoutResult>();
+  for (const q of qualifiers) result.set(q.teamId, {koWins: 0, koDraws: 0, qual: 1});
+
+  // Seed strongest-first: group winners before runners-up before thirds, then
+  // by rating. seed[0] is the #1 seed.
+  const seeded = [...qualifiers].sort(
+    (a, b) => a.finishPos - b.finishPos || ratings.get(b.teamId)! - ratings.get(a.teamId)!
+  );
+  const order = seedOrder(seeded.length); // 1-based seeds in bracket order
+  let bracket = order.map((seed) => seeded[seed - 1].teamId);
+
+  // qual reached by losing in a round of `size` teams: size 32 -> 1, 16 -> 2,
+  // 8 -> 3, 4 -> 4, 2 -> 5; the survivor of the size-2 round is champion (6).
+  const qualForRoundSize: Record<number, number> = {32: 1, 16: 2, 8: 3, 4: 4, 2: 5};
+
+  while (bracket.length > 1) {
+    const loserQual = qualForRoundSize[bracket.length];
+    const next: number[] = [];
+    for (let i = 0; i < bracket.length; i += 2) {
+      const home = bracket[i];
+      const away = bracket[i + 1];
+      const rh = ratings.get(home)!;
+      const ra = ratings.get(away)!;
+      const s = rollMatch(rng, rh, ra);
+      let winner: number;
+      let loser: number;
+      if (s.home > s.away) {
+        winner = home; loser = away;
+        result.get(home)!.koWins++;
+      } else if (s.away > s.home) {
+        winner = away; loser = home;
+        result.get(away)!.koWins++;
+      } else {
+        // tie after 90' -> penalties; a draw for match points for both.
+        result.get(home)!.koDraws++;
+        result.get(away)!.koDraws++;
+        if (rng() < homeEdge(rh, ra)) { winner = home; loser = away; }
+        else { winner = away; loser = home; }
+      }
+      result.get(loser)!.qual = loserQual;
+      result.get(winner)!.qual = loserQual + 1; // provisional; overwritten if advances
+      next.push(winner);
+    }
+    bracket = next;
+  }
+  // The last surviving team is champion.
+  result.get(bracket[0])!.qual = 6;
+  return result;
+}

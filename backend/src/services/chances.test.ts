@@ -115,3 +115,43 @@ describe('selectQualifiers', () => {
     expect(thirds).toBe(8);
   });
 });
+
+import {simulateKnockout, KnockoutResult} from './chances';
+
+describe('simulateKnockout', () => {
+  function qualifiersFor(teams: SimTeam[]): {teamId: number; finishPos: 1 | 2 | 3}[] {
+    return teams.map((t, i) => ({teamId: t.api_id, finishPos: ((i % 3) + 1) as 1 | 2 | 3}));
+  }
+
+  it('produces exactly one champion and consistent stage counts', () => {
+    const teams: SimTeam[] = [];
+    for (let i = 1; i <= 32; i++) teams.push(team(i, 'A', ((i % 6) + 1)));
+    const ratings = new Map(teams.map((t) => [t.api_id, rating(t.tier)]));
+    const q = qualifiersFor(teams);
+    const res = simulateKnockout(q, ratings, mulberry32(3));
+
+    const champions = [...res.values()].filter((r) => r.qual === 6);
+    expect(champions.length).toBe(1);
+    // Every qualifier reaches at least R32 (qual >= 1).
+    expect([...res.values()].every((r) => r.qual >= 1)).toBe(true);
+    // Stage distribution: 16 reach exactly R32(1), 8 R16(2), 4 QF(3), 2 SF(4),
+    // 1 Final-loser(5), 1 Champion(6).
+    const count = (qv: number) => [...res.values()].filter((r) => r.qual === qv).length;
+    expect(count(1)).toBe(16);
+    expect(count(2)).toBe(8);
+    expect(count(3)).toBe(4);
+    expect(count(4)).toBe(2);
+    expect(count(5)).toBe(1);
+    expect(count(6)).toBe(1);
+  });
+
+  it('is deterministic for a given seed', () => {
+    const teams: SimTeam[] = [];
+    for (let i = 1; i <= 32; i++) teams.push(team(i, 'A', ((i % 6) + 1)));
+    const ratings = new Map(teams.map((t) => [t.api_id, rating(t.tier)]));
+    const q = qualifiersFor(teams);
+    const a = simulateKnockout(q, ratings, mulberry32(9));
+    const b = simulateKnockout(q, ratings, mulberry32(9));
+    expect([...a.entries()]).toEqual([...b.entries()]);
+  });
+});
