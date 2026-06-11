@@ -77,3 +77,110 @@ export function rollMatch(rng: Rng, ratingHome: number, ratingAway: number): Sco
 export function homeEdge(ratingHome: number, ratingAway: number): number {
   return 1 / (1 + Math.pow(10, (ratingAway - ratingHome) / 400));
 }
+
+// --- input shapes (decoupled from mongoose docs) --------------------------
+
+export interface SimTeam {
+  api_id: number;
+  group: string; // group letter 'A'..'L'
+  tier: number; // 1..6
+  achievedQual: number; // Team.qualifications already banked (0..6) — a floor
+  eliminated: boolean; // already knocked out in reality
+}
+
+export interface SimMatch {
+  group: string; // group letter 'A'..'L'
+  status: string; // 'FINISHED' freezes the real score; otherwise rolled
+  homeId: number;
+  awayId: number;
+  scoreHome: number | null;
+  scoreAway: number | null;
+}
+
+export interface GroupRow {
+  teamId: number;
+  group: string;
+  w: number;
+  d: number;
+  l: number;
+  gf: number;
+  ga: number;
+  gd: number;
+  pts: number;
+  pos: number;
+}
+
+export interface Qualifier {
+  teamId: number;
+  group: string;
+  finishPos: 1 | 2 | 3;
+}
+
+function ratingByTeam(teams: SimTeam[]): Map<number, number> {
+  const m = new Map<number, number>();
+  for (const t of teams) m.set(t.api_id, rating(t.tier));
+  return m;
+}
+
+/** Roll/freeze every group match and return final standings per group. */
+export function simulateGroupStage(
+  teams: SimTeam[],
+  matches: SimMatch[],
+  rng: Rng
+): Map<string, GroupRow[]> {
+  const ratings = ratingByTeam(teams);
+  const rows = new Map<number, GroupRow>();
+  for (const t of teams) {
+    rows.set(t.api_id, {
+      teamId: t.api_id, group: t.group,
+      w: 0, d: 0, l: 0, gf: 0, ga: 0, gd: 0, pts: 0, pos: 0,
+    });
+  }
+
+  for (const m of matches) {
+    let gh: number;
+    let ga: number;
+    if (m.status === 'FINISHED' && m.scoreHome != null && m.scoreAway != null) {
+      gh = m.scoreHome;
+      ga = m.scoreAway;
+    } else {
+      const s = rollMatch(rng, ratings.get(m.homeId)!, ratings.get(m.awayId)!);
+      gh = s.home;
+      ga = s.away;
+    }
+    const h = rows.get(m.homeId)!;
+    const a = rows.get(m.awayId)!;
+    h.gf += gh; h.ga += ga; a.gf += ga; a.ga += gh;
+    if (gh > ga) { h.w++; a.l++; h.pts += 3; }
+    else if (ga > gh) { a.w++; h.l++; a.pts += 3; }
+    else { h.d++; a.d++; h.pts++; a.pts++; }
+  }
+
+  const byGroup = new Map<string, GroupRow[]>();
+  for (const r of rows.values()) {
+    r.gd = r.gf - r.ga;
+    if (!byGroup.has(r.group)) byGroup.set(r.group, []);
+    byGroup.get(r.group)!.push(r);
+  }
+  for (const [, list] of byGroup) {
+    list.sort((x, y) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.teamId - y.teamId);
+    list.forEach((r, i) => (r.pos = i + 1));
+  }
+  return byGroup;
+}
+
+/** Top 2 of each group + the 8 best third-placed teams (2026 format). */
+export function selectQualifiers(tables: Map<string, GroupRow[]>): Qualifier[] {
+  const q: Qualifier[] = [];
+  const thirds: GroupRow[] = [];
+  for (const [, list] of tables) {
+    q.push({teamId: list[0].teamId, group: list[0].group, finishPos: 1});
+    q.push({teamId: list[1].teamId, group: list[1].group, finishPos: 2});
+    if (list[2]) thirds.push(list[2]);
+  }
+  thirds.sort((x, y) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.teamId - y.teamId);
+  for (const r of thirds.slice(0, 8)) {
+    q.push({teamId: r.teamId, group: r.group, finishPos: 3});
+  }
+  return q;
+}

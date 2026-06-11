@@ -54,3 +54,64 @@ describe('rollMatch', () => {
     expect(strongWins).toBeGreaterThan(weakWins);
   });
 });
+
+import {
+  SimTeam,
+  SimMatch,
+  simulateGroupStage,
+  selectQualifiers,
+} from './chances';
+
+function team(api_id: number, group: string, tier: number): SimTeam {
+  return {api_id, group, tier, achievedQual: 0, eliminated: false};
+}
+
+// One finished group A: team 1 wins all, team 2 second, team 3 third, team 4 last.
+const groupA: SimTeam[] = [team(1, 'A', 1), team(2, 'A', 3), team(3, 'A', 4), team(4, 'A', 6)];
+function fin(group: string, h: number, a: number, sh: number, sa: number): SimMatch {
+  return {group, status: 'FINISHED', homeId: h, awayId: a, scoreHome: sh, scoreAway: sa};
+}
+const groupAMatches: SimMatch[] = [
+  fin('A', 1, 2, 2, 0), fin('A', 3, 4, 1, 0),
+  fin('A', 1, 3, 3, 0), fin('A', 2, 4, 2, 1),
+  fin('A', 1, 4, 4, 0), fin('A', 2, 3, 1, 0),
+];
+
+describe('simulateGroupStage', () => {
+  it('reproduces a finished group exactly (frozen results)', () => {
+    const tables = simulateGroupStage(groupA, groupAMatches, mulberry32(1));
+    const a = tables.get('A')!;
+    expect(a.map((r) => r.teamId)).toEqual([1, 2, 3, 4]);
+    expect(a[0].pts).toBe(9); // 3 wins
+    expect(a[0].pos).toBe(1);
+    expect(a[3].pos).toBe(4);
+  });
+});
+
+describe('selectQualifiers', () => {
+  it('takes top 2 of every group plus the 8 best thirds', () => {
+    const letters = 'ABCDEFGHIJKL'.split('');
+    const teams: SimTeam[] = [];
+    const matches: SimMatch[] = [];
+    let id = 1;
+    for (const g of letters) {
+      const ids = [id, id + 1, id + 2, id + 3];
+      teams.push(team(ids[0], g, 1), team(ids[1], g, 3), team(ids[2], g, 4), team(ids[3], g, 6));
+      matches.push(
+        fin(g, ids[0], ids[1], 2, 0), fin(g, ids[2], ids[3], 1, 0),
+        fin(g, ids[0], ids[2], 3, 0), fin(g, ids[1], ids[3], 2, 1),
+        fin(g, ids[0], ids[3], 4, 0), fin(g, ids[1], ids[2], 1, 0),
+      );
+      id += 4;
+    }
+    const tables = simulateGroupStage(teams, matches, mulberry32(1));
+    const q = selectQualifiers(tables);
+    expect(q.length).toBe(32);
+    const firsts = q.filter((x) => x.finishPos === 1).length;
+    const seconds = q.filter((x) => x.finishPos === 2).length;
+    const thirds = q.filter((x) => x.finishPos === 3).length;
+    expect(firsts).toBe(12);
+    expect(seconds).toBe(12);
+    expect(thirds).toBe(8);
+  });
+});
