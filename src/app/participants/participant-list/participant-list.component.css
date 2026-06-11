@@ -174,3 +174,39 @@
   letter-spacing: 0.4px;
   opacity: 0.8;
 }
+
+/* Compact the right-side chips on phones so participant names aren't cut off.
+   Must come after the base chip rules above to win the cascade. */
+@media (max-width: 480px) {
+  .chance-chip {
+    margin-right: 6px;
+    padding: 2px 7px;
+    gap: 3px;
+  }
+  .chance-chip__value {
+    font-size: 13px;
+  }
+  .chance-chip__label {
+    font-size: 10px;
+    letter-spacing: 0.2px;
+  }
+  .points-chip {
+    padding: 5px 10px;
+    gap: 3px;
+  }
+  .points-chip__value {
+    font-size: 14px;
+  }
+  .points-chip__label {
+    font-size: 10px;
+    letter-spacing: 0.3px;
+  }
+}
+
+/* On very narrow screens, drop the chip labels to give names maximum room. */
+@media (max-width: 360px) {
+  .chance-chip__label,
+  .points-chip__label {
+    display: none;
+  }
+}
