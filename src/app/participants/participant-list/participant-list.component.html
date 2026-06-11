@@ -8,7 +8,7 @@
         <span class="participant-card__avatar">
           <img src="../../../assets/{{participant.lastName}}.jpg" [alt]="participant.firstName + ' ' + participant.lastName" />
         </span>
-        <span class="participant-card__name">{{ participant.firstName }} {{ participant.lastName }}</span>
+        <span class="participant-card__name">{{ displayName(participant) }}</span>
       </mat-panel-title>
       <mat-panel-description class="participant-card__points">
         <span class="chance-chip" *ngIf="participant.chances > 0">

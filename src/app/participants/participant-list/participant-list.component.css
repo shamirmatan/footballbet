@@ -65,11 +65,9 @@
   font-size: 16px;
   font-weight: 600;
   color: var(--color-ink-900);
-  /* Wrap to a second line instead of truncating so full names always show.
-     On wide screens there's room for one line; it only wraps when tight. */
-  white-space: normal;
-  overflow-wrap: anywhere;
-  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rank-badge {

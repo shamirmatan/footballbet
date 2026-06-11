@@ -30,6 +30,11 @@ export class ParticipantListComponent implements OnInit, OnDestroy {
     this.participantsSub.unsubscribe()
   }
 
+  displayName(p: Participant): string {
+    const initial = p.lastName ? `${p.lastName.charAt(0).toUpperCase()}.` : '';
+    return `${p.firstName} ${initial}`.trim();
+  }
+
   rankClass(position: number): string {
     if (position === 1) return 'rank-badge--gold';
     if (position === 2) return 'rank-badge--silver';
