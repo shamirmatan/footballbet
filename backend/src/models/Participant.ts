@@ -5,7 +5,8 @@ export interface IParticipant {
   firstName: string;
   lastName: string;
   teams: [ITeam];
-  points: number
+  points: number;
+  chances: number;
 }
 
 export interface IParticipantModel extends IParticipant, Document {
@@ -16,6 +17,7 @@ const ParticipantSchema: Schema = new Schema(
     firstName: {type: String, required: true},
     lastName: {type: String, required: true},
     points: {type: Number, required: true},
+    chances: {type: Number, required: false, default: 0},
     teams: [{type: Schema.Types.ObjectId, required: true, ref: 'Team'}]
   },
   {
