@@ -151,3 +151,26 @@
     font-size: 14px;
   }
 }
+
+.chance-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-right: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.04);
+  color: var(--color-ink-500, #607d8b);
+}
+
+.chance-chip__value {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.chance-chip__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  opacity: 0.8;
+}

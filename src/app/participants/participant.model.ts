@@ -4,5 +4,6 @@ interface Participant {
   teams: Team[];
   position: number;
   points: number;
+  chances: number;
   logo: string;
 }
