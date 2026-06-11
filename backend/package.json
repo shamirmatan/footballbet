@@ -9,6 +9,8 @@
     "start:dev": "nodemon",
     "cron:update": "node ./build/cron/updateAll.js",
     "cron:update:dev": "ts-node src/cron/updateAll.ts",
+    "cron:chances": "node ./build/cron/updateChances.js",
+    "cron:chances:dev": "ts-node src/cron/updateChances.ts",
     "test": "jest"
   },
   "author": "",
