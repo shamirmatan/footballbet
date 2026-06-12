@@ -102,9 +102,53 @@ const computePoints = (agg: TeamAggregate): number => {
   return base + bonus;
 };
 
+const computeGroupStatsFromMatches = (
+  matches: FDMatch[]
+): Map<number, {games: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number; goalDifference: number}> => {
+  const stats = new Map<number, {games: number; wins: number; draws: number; losses: number; goalsFor: number; goalsAgainst: number; goalDifference: number}>();
+  const ensure = (id: number) => {
+    if (!stats.has(id))
+      stats.set(id, {games: 0, wins: 0, draws: 0, losses: 0, goalsFor: 0, goalsAgainst: 0, goalDifference: 0});
+    return stats.get(id)!;
+  };
+  for (const m of matches) {
+    if (m.stage !== 'GROUP_STAGE') continue;
+    if (m.status !== 'FINISHED' && m.status !== 'IN_PLAY' && m.status !== 'PAUSED') continue;
+    const homeId = m.homeTeam.id;
+    const awayId = m.awayTeam.id;
+    const gh = m.score.fullTime.home;
+    const ga = m.score.fullTime.away;
+    if (!homeId || !awayId || gh == null || ga == null) continue;
+    const h = ensure(homeId);
+    const a = ensure(awayId);
+    h.games += 1;
+    a.games += 1;
+    h.goalsFor += gh;
+    h.goalsAgainst += ga;
+    a.goalsFor += ga;
+    a.goalsAgainst += gh;
+    h.goalDifference = h.goalsFor - h.goalsAgainst;
+    a.goalDifference = a.goalsFor - a.goalsAgainst;
+    if (gh > ga) {
+      h.wins += 1;
+      a.losses += 1;
+    } else if (gh < ga) {
+      a.wins += 1;
+      h.losses += 1;
+    } else {
+      h.draws += 1;
+      a.draws += 1;
+    }
+  }
+  return stats;
+};
+
 const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamAggregate[] => {
   const stageByTeam = computeStageByTeam(matches);
   const championId = findChampionId(matches);
+  // Compute W/D/L from match data so live scores are reflected immediately,
+  // rather than waiting for the standings API to update at full-time.
+  const groupStats = computeGroupStatsFromMatches(matches);
 
   const aggregates: TeamAggregate[] = [];
   for (const group of standings) {
@@ -113,23 +157,28 @@ const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamA
       const highest = stageByTeam.get(row.team.id) ?? 'GROUP_STAGE';
       const isChampion = row.team.id === championId;
       const qualifications = buildQualifications(highest, isChampion);
-      const eliminated =
-        !isChampion &&
-        !hasUpcomingMatch(row.team.id, matches) &&
-        row.playedGames > 0;
+      const s = groupStats.get(row.team.id);
+      const games = s?.games ?? row.playedGames;
+      const wins = s?.wins ?? row.won;
+      const draws = s?.draws ?? row.draw;
+      const losses = s?.losses ?? row.lost;
+      const goalsFor = s?.goalsFor ?? row.goalsFor;
+      const goalsAgainst = s?.goalsAgainst ?? row.goalsAgainst;
+      const goalDifference = s?.goalDifference ?? row.goalDifference;
+      const eliminated = !isChampion && !hasUpcomingMatch(row.team.id, matches) && games > 0;
       aggregates.push({
         api_id: row.team.id,
         name: row.team.name,
         logo: row.team.crest,
         group: letter,
         position: row.position,
-        games: row.playedGames,
-        wins: row.won,
-        draws: row.draw,
-        losses: row.lost,
-        goalsFor: row.goalsFor,
-        goalsAgainst: row.goalsAgainst,
-        goalDifference: row.goalDifference,
+        games,
+        wins,
+        draws,
+        losses,
+        goalsFor,
+        goalsAgainst,
+        goalDifference,
         qualifications,
         eliminated,
         isChampion
