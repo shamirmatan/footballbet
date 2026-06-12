@@ -1,4 +1,6 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Subscription} from 'rxjs';
+import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {MatchSummary, TournamentState} from '../tournament.model';
 
@@ -24,9 +26,14 @@ export class HeroComponent implements OnInit, OnDestroy {
   loading = true;
   daysToKickoff = 0;
   hoursToKickoff = 0;
+  private participants: Participant[] = [];
+  private participantsSub?: Subscription;
   private timer?: number;
 
-  constructor(private tournamentService: TournamentService) {}
+  constructor(
+    private tournamentService: TournamentService,
+    private participantsService: ParticipantsService
+  ) {}
 
   ngOnInit(): void {
     this.tournamentService.getState().subscribe({
@@ -39,11 +46,16 @@ export class HeroComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
+    this.participantsSub = this.participantsService
+      .getParticipantsUpdateListener()
+      .subscribe((p) => (this.participants = p));
+    this.participantsService.getParticipants();
     this.timer = window.setInterval(() => this.recomputeCountdown(), 60_000);
   }
 
   ngOnDestroy(): void {
     if (this.timer) window.clearInterval(this.timer);
+    this.participantsSub?.unsubscribe();
   }
 
   get stageLabel(): string {
@@ -70,6 +82,15 @@ export class HeroComponent implements OnInit, OnDestroy {
 
   get isCompleted(): boolean {
     return this.state?.stage === 'COMPLETED';
+  }
+
+  ownerOf(teamName: string): string {
+    const p = this.participants.find((participant) =>
+      participant.teams.some((t) => t.name === teamName)
+    );
+    if (!p) return '';
+    const initial = p.lastName ? `${p.lastName.charAt(0).toUpperCase()}.` : '';
+    return `${p.firstName} ${initial}`.trim();
   }
 
   formatKickoff(utcDate: string): string {

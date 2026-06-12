@@ -145,6 +145,10 @@
   flex: 1;
 }
 
+.match-card__side--away {
+  justify-content: flex-end;
+}
+
 .match-card__side img {
   width: 24px;
   height: 24px;
@@ -153,12 +157,32 @@
   flex-shrink: 0;
 }
 
+.match-card__side-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.match-card__side-info--away {
+  text-align: right;
+}
+
 .match-card__name {
   font-weight: 700;
   font-size: 15px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.match-card__owner {
+  font-size: 10px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.2px;
 }
 
 .match-card__vs {

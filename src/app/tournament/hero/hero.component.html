@@ -19,12 +19,18 @@
         <div class="match-card__teams">
           <span class="match-card__side">
             <img *ngIf="state.nextMatch.homeLogo" [src]="state.nextMatch.homeLogo" [alt]="state.nextMatch.home" />
-            <span class="match-card__name">{{ state.nextMatch.home }}</span>
+            <span class="match-card__side-info">
+              <span class="match-card__name">{{ state.nextMatch.home }}</span>
+              <span class="match-card__owner" *ngIf="ownerOf(state.nextMatch.home)">{{ ownerOf(state.nextMatch.home) }}</span>
+            </span>
           </span>
           <span class="match-card__vs">vs</span>
-          <span class="match-card__side">
+          <span class="match-card__side match-card__side--away">
+            <span class="match-card__side-info match-card__side-info--away">
+              <span class="match-card__name">{{ state.nextMatch.away }}</span>
+              <span class="match-card__owner" *ngIf="ownerOf(state.nextMatch.away)">{{ ownerOf(state.nextMatch.away) }}</span>
+            </span>
             <img *ngIf="state.nextMatch.awayLogo" [src]="state.nextMatch.awayLogo" [alt]="state.nextMatch.away" />
-            <span class="match-card__name">{{ state.nextMatch.away }}</span>
           </span>
         </div>
         <span class="match-card__when">{{ formatKickoff(state.nextMatch.utcDate) }}</span>
@@ -51,15 +57,21 @@
         <div class="match-card__teams">
           <span class="match-card__side">
             <img *ngIf="featuredMatch.homeLogo" [src]="featuredMatch.homeLogo" [alt]="featuredMatch.home" />
-            <span class="match-card__name">{{ featuredMatch.home }}</span>
+            <span class="match-card__side-info">
+              <span class="match-card__name">{{ featuredMatch.home }}</span>
+              <span class="match-card__owner" *ngIf="ownerOf(featuredMatch.home)">{{ ownerOf(featuredMatch.home) }}</span>
+            </span>
           </span>
           <span class="match-card__score" *ngIf="isLive">
             {{ featuredMatch.scoreHome ?? 0 }} – {{ featuredMatch.scoreAway ?? 0 }}
           </span>
           <span class="match-card__vs" *ngIf="!isLive">vs</span>
-          <span class="match-card__side">
+          <span class="match-card__side match-card__side--away">
+            <span class="match-card__side-info match-card__side-info--away">
+              <span class="match-card__name">{{ featuredMatch.away }}</span>
+              <span class="match-card__owner" *ngIf="ownerOf(featuredMatch.away)">{{ ownerOf(featuredMatch.away) }}</span>
+            </span>
             <img *ngIf="featuredMatch.awayLogo" [src]="featuredMatch.awayLogo" [alt]="featuredMatch.away" />
-            <span class="match-card__name">{{ featuredMatch.away }}</span>
           </span>
         </div>
         <span class="match-card__when" *ngIf="!isLive">{{ formatKickoff(featuredMatch.utcDate) }}</span>
