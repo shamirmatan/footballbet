@@ -114,8 +114,8 @@ async function main() {
   const stateWipe = await TournamentState.deleteMany({});
   console.log(`  TournamentState:    ${stateWipe.deletedCount} deleted`);
 
-  console.log('\nDone. Run the cron once to repopulate TournamentState:');
-  console.log('  npm run build && npm run cron:update');
+  console.log('\nDone. Start the server to repopulate TournamentState (cron runs every minute):');
+  console.log('  npm run build && npm start');
 
   await mongoose.disconnect();
 }

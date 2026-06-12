@@ -10,6 +10,7 @@ import groupRoutes from './routes/Groups';
 import matchRoutes from './routes/Matches';
 import authRoutes from './routes/Auth';
 import {seedAdmins} from './config/firebase';
+import {startCronJobs} from './cron/scheduler';
 
 const router = express();
 
@@ -20,6 +21,7 @@ mongoose
     Logging.info('Mongo connected successfully.');
     await seedAdmins();
     StartServer();
+    startCronJobs();
   })
   .catch((error) => Logging.error(error));
 

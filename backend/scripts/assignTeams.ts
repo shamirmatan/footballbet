@@ -134,8 +134,8 @@ async function main() {
     console.log(`  ${lastName}: ${teamIds.length} teams assigned`);
   }
 
-  console.log('\nDone. Run the cron to recompute participant points from team stats:');
-  console.log('  npm run build && npm run cron:update');
+  console.log('\nDone. Start the server to recompute participant points from team stats (cron runs every minute):');
+  console.log('  npm run build && npm start');
 
   await mongoose.disconnect();
 }

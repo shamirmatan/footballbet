@@ -7,8 +7,6 @@
     "build": "tsc",
     "start": "node ./build/server.js",
     "start:dev": "nodemon",
-    "cron:update": "node ./build/cron/updateAll.js",
-    "cron:update:dev": "ts-node src/cron/updateAll.ts",
     "cron:chances": "node ./build/cron/updateChances.js",
     "cron:chances:dev": "ts-node src/cron/updateChances.ts",
     "test": "jest"
@@ -24,12 +22,14 @@
     "dotenv": "^16.0.0",
     "express": "^4.17.3",
     "firebase-admin": "^13.10.0",
-    "mongoose": "^6.2.2"
+    "mongoose": "^6.2.2",
+    "node-cron": "^4.2.1"
   },
   "devDependencies": {
     "@types/express": "^4.17.13",
     "@types/jest": "^29.5.14",
     "@types/node": "^18.15.11",
+    "@types/node-cron": "^3.0.11",
     "jest": "^29.7.0",
     "nodemon": "^2.0.20",
     "ts-jest": "^29.4.11",
