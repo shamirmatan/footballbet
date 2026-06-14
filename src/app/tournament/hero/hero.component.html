@@ -37,8 +37,8 @@
       </div>
     </ng-container>
 
-    <!-- Live / in-progress tournament -->
-    <ng-container *ngIf="!isPreTournament && !isCompleted && featuredMatch">
+    <!-- Tournament in progress -->
+    <ng-container *ngIf="!isPreTournament && !isCompleted">
       <div class="hero__main">
         <span class="hero__eyebrow">{{ stageLabel }}</span>
         <div class="hero__stage-title">
@@ -46,12 +46,59 @@
             <span class="live-dot" aria-hidden="true"></span>
             <span>Live now</span>
           </ng-container>
-          <ng-container *ngIf="!isLive">Next up</ng-container>
+          <ng-container *ngIf="!isLive && showDailySchedule">Today</ng-container>
+          <ng-container *ngIf="!isLive && !showDailySchedule">Next up</ng-container>
         </div>
         <p class="hero__subtitle" *ngIf="state.currentMatchday">Matchday {{ state.currentMatchday }}</p>
       </div>
 
-      <div class="match-card" [class.match-card--live]="isLive">
+      <!-- Daily schedule: today + tomorrow morning -->
+      <div class="match-schedule" *ngIf="showDailySchedule">
+        <div class="match-row" *ngFor="let m of todayMatches" [class.match-row--live]="isLiveMatch(m)">
+          <div class="match-row__meta">
+            <span class="match-row__group">{{ matchGroupLabel(m) }}</span>
+            <span class="match-row__status" [class.match-row__status--live]="isLiveMatch(m)">
+              <span class="live-dot live-dot--sm" *ngIf="m.status === 'IN_PLAY'" aria-hidden="true"></span>
+              {{ matchStatusLabel(m) }}
+            </span>
+          </div>
+          <div class="match-row__sides">
+            <div class="match-row__team" [class.match-row__team--loser]="isLoser(m, 'home')">
+              <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name ?? ''" />
+              <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+              <span class="match-row__score" *ngIf="hasScore(m)">{{ m.scoreHome ?? 0 }}</span>
+            </div>
+            <div class="match-row__team" [class.match-row__team--loser]="isLoser(m, 'away')">
+              <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name ?? ''" />
+              <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+              <span class="match-row__score" *ngIf="hasScore(m)">{{ m.scoreAway ?? 0 }}</span>
+            </div>
+          </div>
+        </div>
+
+        <ng-container *ngIf="tomorrowMorningMatches.length > 0">
+          <div class="match-schedule__divider">Tomorrow Morning</div>
+          <div class="match-row" *ngFor="let m of tomorrowMorningMatches">
+            <div class="match-row__meta">
+              <span class="match-row__group">{{ matchGroupLabel(m) }}</span>
+              <span class="match-row__status">{{ matchStatusLabel(m) }}</span>
+            </div>
+            <div class="match-row__sides">
+              <div class="match-row__team">
+                <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name ?? ''" />
+                <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+              </div>
+              <div class="match-row__team">
+                <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name ?? ''" />
+                <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+
+      <!-- Fallback on rest days: single next-up card -->
+      <div class="match-card" *ngIf="!showDailySchedule && featuredMatch" [class.match-card--live]="isLive">
         <span class="match-card__label" *ngIf="isLive">LIVE</span>
         <span class="match-card__label" *ngIf="!isLive">Next kickoff</span>
         <div class="match-card__teams">

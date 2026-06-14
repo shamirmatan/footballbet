@@ -207,6 +207,134 @@
   color: rgba(255, 255, 255, 0.7);
 }
 
+/* ── Daily schedule ─────────────────────────────────── */
+
+.live-dot--sm {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+}
+
+.match-schedule {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 14px;
+  backdrop-filter: blur(2px);
+  min-width: 280px;
+  max-width: 360px;
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+.match-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.match-row:last-child {
+  border-bottom: none;
+}
+
+.match-row--live {
+  background: rgba(239, 68, 68, 0.07);
+}
+
+.match-row__meta {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 34px;
+  flex-shrink: 0;
+}
+
+.match-row__group {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+  white-space: nowrap;
+}
+
+.match-row__status {
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.7);
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.match-row__status--live {
+  color: #fca5a5;
+}
+
+.match-row__sides {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.match-row__team {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.match-row__team img {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  flex-shrink: 0;
+}
+
+.match-row__name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-row__score {
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  min-width: 12px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.match-row__team--loser .match-row__name,
+.match-row__team--loser .match-row__score {
+  color: rgba(255, 255, 255, 0.38);
+}
+
+.match-schedule__divider {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.38);
+  padding: 6px 14px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ── Responsive ─────────────────────────────────────── */
+
 @media (max-width: 640px) {
   .hero__inner {
     padding: 24px 16px;
@@ -221,6 +349,11 @@
   .match-card {
     width: 100%;
     min-width: 0;
+  }
+  .match-schedule {
+    width: 100%;
+    max-width: none;
+    max-height: 280px;
   }
   .hero__stage-title {
     font-size: 22px;
