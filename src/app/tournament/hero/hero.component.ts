@@ -151,7 +151,10 @@ export class HeroComponent implements OnInit, OnDestroy {
   }
 
 matchGroupLabel(m: Match): string {
-    if (m.group) return `Grp ${m.group}`;
+    if (m.group) {
+      const letter = m.group.replace(/^GROUP_/i, '');
+      return `Grp ${letter}`;
+    }
     return GROUP_SHORT[m.stage] ?? m.stage;
   }
 
