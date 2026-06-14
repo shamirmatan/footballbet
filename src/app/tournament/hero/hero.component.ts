@@ -25,9 +25,6 @@ const GROUP_SHORT: Record<string, string> = {
   FINAL: 'Final'
 };
 
-// Participants are in UTC+2 — show schedule in that offset.
-const DISPLAY_OFFSET_MS = 2 * 60 * 60 * 1000;
-// Matches kicking off before this local hour count as "tomorrow morning".
 const TOMORROW_MORNING_CUTOFF_HOUR = 7;
 
 @Component({
@@ -103,18 +100,20 @@ export class HeroComponent implements OnInit, OnDestroy {
   }
 
   get todayMatches(): Match[] {
-    const key = this.dateKey(new Date(Date.now() + DISPLAY_OFFSET_MS));
+    const key = this.dateKey(new Date());
     return this.allMatches
       .filter((m) => this.dateKey(this.toLocal(m.utcDate)) === key)
       .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
   }
 
   get tomorrowMorningMatches(): Match[] {
-    const key = this.dateKey(new Date(Date.now() + DISPLAY_OFFSET_MS + 86_400_000));
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const key = this.dateKey(tomorrow);
     return this.allMatches
       .filter((m) => {
         const local = this.toLocal(m.utcDate);
-        return this.dateKey(local) === key && local.getUTCHours() < TOMORROW_MORNING_CUTOFF_HOUR;
+        return this.dateKey(local) === key && local.getHours() < TOMORROW_MORNING_CUTOFF_HOUR;
       })
       .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
   }
@@ -136,8 +135,8 @@ export class HeroComponent implements OnInit, OnDestroy {
       case 'CANCELLED': return 'CXL';
       default: {
         const local = this.toLocal(m.utcDate);
-        const h = String(local.getUTCHours()).padStart(2, '0');
-        const min = String(local.getUTCMinutes()).padStart(2, '0');
+        const h = String(local.getHours()).padStart(2, '0');
+        const min = String(local.getMinutes()).padStart(2, '0');
         return `${h}:${min}`;
       }
     }
@@ -183,13 +182,13 @@ export class HeroComponent implements OnInit, OnDestroy {
   }
 
   private toLocal(utcDate: string): Date {
-    return new Date(new Date(utcDate).getTime() + DISPLAY_OFFSET_MS);
+    return new Date(utcDate);
   }
 
   private dateKey(d: Date): string {
-    const y = d.getUTCFullYear();
-    const mo = String(d.getUTCMonth() + 1).padStart(2, '0');
-    const day = String(d.getUTCDate()).padStart(2, '0');
+    const y = d.getFullYear();
+    const mo = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
     return `${y}-${mo}-${day}`;
   }
 
