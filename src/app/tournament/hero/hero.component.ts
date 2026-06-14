@@ -150,12 +150,7 @@ export class HeroComponent implements OnInit, OnDestroy {
     return m.status === 'FINISHED' || m.status === 'IN_PLAY' || m.status === 'PAUSED';
   }
 
-  isLoser(m: Match, side: 'home' | 'away'): boolean {
-    if (m.status !== 'FINISHED' || m.scoreHome == null || m.scoreAway == null) return false;
-    return side === 'home' ? m.scoreHome < m.scoreAway : m.scoreAway < m.scoreHome;
-  }
-
-  matchGroupLabel(m: Match): string {
+matchGroupLabel(m: Match): string {
     if (m.group) return `Grp ${m.group}`;
     return GROUP_SHORT[m.stage] ?? m.stage;
   }
