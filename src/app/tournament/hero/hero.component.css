@@ -320,7 +320,8 @@
 
 .match-row__team--loser .match-row__name,
 .match-row__team--loser .match-row__score {
-  color: rgba(255, 255, 255, 0.38);
+  color: rgba(255, 255, 255, 0.32);
+  font-weight: 400;
 }
 
 .match-schedule__divider {
