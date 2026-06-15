@@ -2,6 +2,7 @@ import {Component, Input, OnInit} from "@angular/core";
 
 interface TeamSummary {
   total: number;
+  played: number;
   advanced: number;
   eliminated: number;
 }
@@ -14,7 +15,7 @@ interface TeamSummary {
 export class TeamsTableComponent implements OnInit {
   @Input() teams: Team[];
   sortedTeams: Team[] = [];
-  summary: TeamSummary = {total: 0, advanced: 0, eliminated: 0};
+  summary: TeamSummary = {total: 0, played: 0, advanced: 0, eliminated: 0};
 
   ngOnInit() {
     this.sortedTeams = [...(this.teams ?? [])].sort((a, b) => {
@@ -24,6 +25,7 @@ export class TeamsTableComponent implements OnInit {
     });
     this.summary = {
       total: this.sortedTeams.length,
+      played: this.sortedTeams.reduce((sum, t) => sum + (t.games ?? 0), 0),
       advanced: this.sortedTeams.reduce((sum, t) => sum + (t.qualifications ?? 0), 0),
       eliminated: this.sortedTeams.filter((t) => t.eliminated).length
     };
