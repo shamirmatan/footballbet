@@ -301,7 +301,9 @@
 
 .match-row__team-text {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 5px;
   min-width: 0;
   flex: 1;
 }
