@@ -65,12 +65,18 @@
           <div class="match-row__sides">
             <div class="match-row__team">
               <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name ?? ''" />
-              <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+              <span class="match-row__team-text">
+                <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+                <span class="match-row__owner" *ngIf="ownerOf(m.homeTeam.name)">{{ ownerOf(m.homeTeam.name) }}</span>
+              </span>
               <span class="match-row__score" *ngIf="hasScore(m)">{{ m.scoreHome ?? 0 }}</span>
             </div>
             <div class="match-row__team">
               <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name ?? ''" />
-              <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+              <span class="match-row__team-text">
+                <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+                <span class="match-row__owner" *ngIf="ownerOf(m.awayTeam.name)">{{ ownerOf(m.awayTeam.name) }}</span>
+              </span>
               <span class="match-row__score" *ngIf="hasScore(m)">{{ m.scoreAway ?? 0 }}</span>
             </div>
           </div>
@@ -86,11 +92,17 @@
             <div class="match-row__sides">
               <div class="match-row__team">
                 <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name ?? ''" />
-                <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+                <span class="match-row__team-text">
+                  <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+                  <span class="match-row__owner" *ngIf="ownerOf(m.homeTeam.name)">{{ ownerOf(m.homeTeam.name) }}</span>
+                </span>
               </div>
               <div class="match-row__team">
                 <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name ?? ''" />
-                <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+                <span class="match-row__team-text">
+                  <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+                  <span class="match-row__owner" *ngIf="ownerOf(m.awayTeam.name)">{{ ownerOf(m.awayTeam.name) }}</span>
+                </span>
               </div>
             </div>
           </div>

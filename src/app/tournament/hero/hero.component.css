@@ -299,11 +299,26 @@
   object-fit: cover;
 }
 
+.match-row__team-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
 .match-row__name {
   font-size: 12px;
   font-weight: 600;
   color: #fff;
-  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-row__owner {
+  font-size: 9px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.48);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
