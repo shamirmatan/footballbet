@@ -332,6 +332,76 @@
 
 /* ── Responsive ─────────────────────────────────────── */
 
+@media (min-width: 641px) {
+  /* Push the schedule onto its own full-width row */
+  .match-schedule {
+    flex: 1 1 100%;
+    max-width: none;
+    max-height: none;
+    overflow-x: auto;
+    overflow-y: visible;
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    backdrop-filter: none;
+    display: flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 8px;
+    padding: 4px 0 8px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+  }
+
+  /* Each match becomes a compact vertical card */
+  .match-row {
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 128px;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 12px;
+    padding: 10px 12px;
+    gap: 7px;
+    align-items: stretch;
+  }
+
+  .match-row--live {
+    border-color: rgba(239, 68, 68, 0.45) !important;
+    background: rgba(239, 68, 68, 0.08);
+  }
+
+  /* Group + status side by side at top of card */
+  .match-row__meta {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    min-width: 0;
+    width: 100%;
+  }
+
+  .match-row__sides {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* Tomorrow morning divider becomes a thin vertical separator */
+  .match-schedule__divider {
+    border-top: none;
+    border-left: 1px solid rgba(255, 255, 255, 0.12);
+    padding: 0 6px;
+    writing-mode: vertical-lr;
+    transform: rotate(180deg);
+    align-self: stretch;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    letter-spacing: 1.2px;
+  }
+}
+
 @media (max-width: 640px) {
   .hero__inner {
     padding: 24px 16px;
