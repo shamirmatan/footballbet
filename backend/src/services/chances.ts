@@ -18,8 +18,8 @@ export function mulberry32(seed: number): Rng {
 
 // --- strength model -------------------------------------------------------
 
-const RATING_BASE = 1900; // tier 1
-const RATING_STEP = 70; // per tier drop
+export const RATING_BASE = 1900; // tier 1
+export const RATING_STEP = 70; // per tier drop
 
 /** Fixed strength rating from draft tier (1 = strongest .. 6 = weakest). */
 export function rating(tier: number): number {
