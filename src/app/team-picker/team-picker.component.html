@@ -18,7 +18,7 @@
     🔒 The draft is locked. Team assignments are final and can no longer be edited.
   </div>
 
-  <mat-spinner *ngIf="isLoading" class="center-spinner"></mat-spinner>
+  <img *ngIf="isLoading" class="ball-spinner" src="assets/trionda.png" alt="Loading…" />
 
   <div *ngIf="!isLoading" class="layout">
     <div class="main-content">
@@ -69,7 +69,7 @@
               class="save-btn"
               [disabled]="!canSave() || isSaving"
               (click)="save()">
-        <mat-spinner *ngIf="isSaving" diameter="20"></mat-spinner>
+        <img *ngIf="isSaving" class="ball-spinner ball-spinner--sm" src="assets/trionda.png" alt="Saving…" />
         <span *ngIf="!isSaving">Save</span>
       </button>
     </div>

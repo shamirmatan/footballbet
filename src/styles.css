@@ -1,19 +1,49 @@
 /* Global styles */
 
 :root {
-  --color-navy-900: #0b2e4e;
-  --color-navy-800: #123a63;
-  --color-navy-700: #1b4a7d;
-  --color-pitch-700: #0f5132;
-  --color-pitch-500: #16794a;
+  /* FIFA World Cup 2026 palette.
+     The official brand pairs a restrained black/white/gold primary mark with a
+     vibrant "multicolor" version led by Torch Red (the "26"), plus the three
+     host-nation tones: Canada red, USA blue, Mexico green.
+     The --color-navy-* names are kept for backwards-compat but now carry the
+     dominant Torch Red brand color. */
+  --color-navy-900: #a50e1a; /* deep red */
+  --color-navy-800: #c8121f;
+  --color-navy-700: #e61d25; /* FIFA Torch Red */
+
+  /* Host-nation tri-color accents */
+  --color-red-600: #e61d25;    /* Canada / primary */
+  --color-blue-700: #2a398d;   /* USA */
+  --color-blue-500: #1b9ed3;   /* USA bright */
+  --color-purple-500: #7c3aed; /* multicolor accent */
+  --color-pitch-700: #2f8f33;  /* Mexico green (dark, for text on light) */
+  --color-pitch-500: #3cac3b;  /* Mexico green */
+
+  /* Gold — retained from the official primary mark (the trophy) */
   --color-gold-500: #f5c518;
   --color-gold-600: #d4a613;
+
   --color-ink-900: #111827;
   --color-ink-700: #374151;
   --color-ink-500: #6b7280;
   --color-cream: #fafaf7;
   --color-card: #ffffff;
   --color-border: #e5e7eb;
+
+  /* Official "Match Colour Designation" host-brand tones */
+  --color-cobalt: #2b4fe6;  /* dominant blue */
+  --color-cyan: #19e0cd;    /* turquoise */
+  --color-coral: #ff8a66;   /* coral */
+
+  /* Signature color-block background: cobalt-blue base with a large cyan curve
+     top-right and coral + red blocks bottom-right (mirrors the 2026 cover art).
+     Blue stays dominant across the text area for white-text contrast. */
+  --gradient-fifa:
+    radial-gradient(125% 120% at 100% 0%, var(--color-cyan) 0 30%, rgba(25, 224, 205, 0) 30.4%),
+    radial-gradient(60% 70% at 100% 100%, var(--color-coral) 0 26%, rgba(255, 138, 102, 0) 26.4%),
+    radial-gradient(85% 95% at 108% 112%, var(--color-red-600) 0 30%, rgba(230, 29, 37, 0) 30.4%),
+    linear-gradient(135deg, var(--color-cobalt) 0%, #2745cc 100%);
+
   --shadow-soft: 0 1px 2px rgba(17, 24, 39, 0.04), 0 4px 16px rgba(17, 24, 39, 0.06);
   --shadow-card-hover: 0 4px 8px rgba(17, 24, 39, 0.06), 0 12px 32px rgba(17, 24, 39, 0.08);
   --radius-lg: 14px;
@@ -43,4 +73,46 @@ body {
   .page {
     padding: 16px 10px;
   }
+}
+
+/* Spinning match-ball loader (replaces mat-spinner). */
+.ball-spinner {
+  display: block;
+  width: 56px;
+  height: 56px;
+  margin: 48px auto;
+  border-radius: 50%;
+  object-fit: cover;
+  animation: ball-spin 0.9s linear infinite;
+}
+
+.ball-spinner--sm {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+@keyframes ball-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Map Angular Material's "primary" from the prebuilt indigo theme to FIFA red. */
+.mat-mdc-raised-button.mat-primary {
+  --mdc-protected-button-container-color: var(--color-red-600);
+  --mdc-protected-button-label-text-color: #fff;
+  background-color: var(--color-red-600);
+  color: #fff;
+}
+
+/* Red focus/active accents on form fields (e.g. the team-select dropdown). */
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__leading,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__notch,
+.mat-mdc-form-field.mat-focused .mdc-notched-outline__trailing {
+  border-color: var(--color-red-600);
+}
+.mat-mdc-form-field.mat-focused .mat-mdc-floating-label,
+.mat-mdc-form-field.mat-focused .mat-mdc-select-arrow {
+  color: var(--color-red-600);
 }

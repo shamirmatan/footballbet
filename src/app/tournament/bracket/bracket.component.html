@@ -1,5 +1,5 @@
 <div class="bracket">
-  <mat-spinner *ngIf="loading" class="center-spinner"></mat-spinner>
+  <img *ngIf="loading" class="ball-spinner" src="assets/trionda.png" alt="Loading…" />
 
   <p class="empty" *ngIf="!loading && stages.length === 0">
     Knockout fixtures appear once the bracket is drawn.

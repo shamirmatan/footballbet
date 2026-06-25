@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="World Cup 2026 match ball">
+  <defs>
+    <radialGradient id="ballShine" cx="38%" cy="32%" r="75%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="70%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#eef1f6"/>
+    </radialGradient>
+  </defs>
+
+  <!-- ball base -->
+  <circle cx="32" cy="32" r="29" fill="url(#ballShine)" stroke="#d4d9e2" stroke-width="1.5"/>
+
+  <!-- tri-nation pinwheel panels (Canada red, USA blue, Mexico green) -->
+  <g transform="translate(32 32)">
+    <g fill="#e61d25">
+      <path d="M0 0 C -7 -14, -7 -23, 0 -27 C 7 -23, 7 -14, 0 0 Z"/>
+    </g>
+    <g fill="#2b4fe6" transform="rotate(120)">
+      <path d="M0 0 C -7 -14, -7 -23, 0 -27 C 7 -23, 7 -14, 0 0 Z"/>
+    </g>
+    <g fill="#3cac3b" transform="rotate(240)">
+      <path d="M0 0 C -7 -14, -7 -23, 0 -27 C 7 -23, 7 -14, 0 0 Z"/>
+    </g>
+
+    <!-- star accents in the white gaps -->
+    <g fill="#f5c518">
+      <path transform="rotate(60) translate(0 -19) scale(0.85)" d="M0 -4 L1.1 -1.2 L4 -1.2 L1.7 0.6 L2.6 3.5 L0 1.7 L-2.6 3.5 L-1.7 0.6 L-4 -1.2 L-1.1 -1.2 Z"/>
+      <path transform="rotate(180) translate(0 -19) scale(0.85)" d="M0 -4 L1.1 -1.2 L4 -1.2 L1.7 0.6 L2.6 3.5 L0 1.7 L-2.6 3.5 L-1.7 0.6 L-4 -1.2 L-1.1 -1.2 Z"/>
+      <path transform="rotate(300) translate(0 -19) scale(0.85)" d="M0 -4 L1.1 -1.2 L4 -1.2 L1.7 0.6 L2.6 3.5 L0 1.7 L-2.6 3.5 L-1.7 0.6 L-4 -1.2 L-1.1 -1.2 Z"/>
+    </g>
+
+    <!-- center hub -->
+    <circle r="3.2" fill="#111827"/>
+  </g>
+</svg>

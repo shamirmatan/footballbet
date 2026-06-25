@@ -1,5 +1,5 @@
 .hero {
-  background: linear-gradient(135deg, #0b2e4e 0%, #123a63 55%, #0f5132 130%);
+  background: var(--gradient-fifa);
   color: #fff;
   border-bottom: 1px solid rgba(0, 0, 0, 0.08);
 }
@@ -78,6 +78,15 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.hero__ball {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  object-fit: cover;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
 }
 
 .hero__subtitle {

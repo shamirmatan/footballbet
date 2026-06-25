@@ -1,5 +1,5 @@
 <div class="groups">
-  <mat-spinner *ngIf="loading" class="center-spinner"></mat-spinner>
+  <img *ngIf="loading" class="ball-spinner" src="assets/trionda.png" alt="Loading…" />
 
   <div class="groups__grid" *ngIf="!loading">
     <section class="group-card" *ngFor="let g of groups">

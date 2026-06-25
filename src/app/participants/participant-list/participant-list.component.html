@@ -1,4 +1,4 @@
-<mat-spinner *ngIf="isLoading" class="center-spinner"></mat-spinner>
+<img *ngIf="isLoading" class="ball-spinner" src="assets/trionda.png" alt="Loading…" />
 
 <mat-accordion class="participants" multi="true" *ngIf="participants.length > 0 && !isLoading">
   <mat-expansion-panel class="participant-card" *ngFor="let participant of participants" hideToggle>
