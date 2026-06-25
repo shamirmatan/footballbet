@@ -1,5 +1,6 @@
 import {BRACKET, BracketSlotDef, buildBracket, BracketMatch} from './bracket'
 import {ITeam} from '../models/Team'
+import {IMatch} from '../models/Match'
 
 let tid = 1;
 const team = (group: string, position: number, games: number, opts: Partial<ITeam> = {}): ITeam => ({
@@ -59,6 +60,93 @@ describe('buildBracket standings resolution', () => {
     expect(qualifiedThirds.slice(0, 8).every((t) => t.in)).toBe(true);
     expect(qualifiedThirds[8].in).toBe(false); // 9th-best third misses out
     expect(qualifiedThirds[0]).toMatchObject({name: 'ThirdA', in: true});
+  });
+});
+
+const fixture = (opts: Partial<IMatch>): IMatch =>
+  ({
+    api_id: opts.api_id ?? 9000 + tid++,
+    stage: opts.stage ?? 'LAST_32',
+    group: null,
+    matchday: null,
+    status: opts.status ?? 'FINISHED',
+    utcDate: opts.utcDate ?? '2026-06-29T19:00:00Z',
+    homeTeam: opts.homeTeam ?? {api_id: null, name: null, logo: null},
+    awayTeam: opts.awayTeam ?? {api_id: null, name: null, logo: null},
+    scoreHome: opts.scoreHome ?? null,
+    scoreAway: opts.scoreAway ?? null,
+    winner: opts.winner ?? null,
+    duration: null
+  } as IMatch);
+
+describe('buildBracket fixture join', () => {
+  it('fills a third-place opponent and score from the drawn fixture', () => {
+    const teams = completeGroup('A'); // WinnerA = position 1
+    const winnerA = teams.find((t) => t.position === 1)!;
+    // football-data drew M79: WinnerA (home) vs Poland (away), WinnerA won 2-1.
+    const fx = fixture({
+      stage: 'LAST_32',
+      status: 'FINISHED',
+      winner: 'HOME_TEAM',
+      scoreHome: 2,
+      scoreAway: 1,
+      homeTeam: {api_id: winnerA.api_id, name: winnerA.name, logo: ''},
+      awayTeam: {api_id: 777, name: 'Poland', logo: 'pl.png'}
+    });
+    const m79 = find(buildBracket(teams, [fx]), 79);
+    expect(m79.home).toMatchObject({api_id: winnerA.api_id, resolved: true});
+    expect(m79.away).toMatchObject({api_id: 777, name: 'Poland', resolved: true});
+    expect(m79.scoreHome).toBe(2);
+    expect(m79.scoreAway).toBe(1);
+    expect(m79.winner).toBe('HOME_TEAM');
+    expect(m79.status).toBe('FINISHED');
+  });
+
+  it('maps scores correctly when our orientation is flipped vs the fixture', () => {
+    const teams = completeGroup('A');
+    const winnerA = teams.find((t) => t.position === 1)!;
+    // Fixture lists WinnerA as the AWAY team; our slot home is WinnerA.
+    const fx = fixture({
+      stage: 'LAST_32',
+      status: 'FINISHED',
+      winner: 'AWAY_TEAM',
+      scoreHome: 0,
+      scoreAway: 3,
+      homeTeam: {api_id: 777, name: 'Poland', logo: 'pl.png'},
+      awayTeam: {api_id: winnerA.api_id, name: winnerA.name, logo: ''}
+    });
+    const m79 = find(buildBracket(teams, [fx]), 79);
+    expect(m79.home).toMatchObject({api_id: winnerA.api_id}); // our home stays WinnerA
+    expect(m79.scoreHome).toBe(3); // WinnerA scored 3
+    expect(m79.away).toMatchObject({name: 'Poland'});
+    expect(m79.scoreAway).toBe(0);
+    expect(m79.winner).toBe('HOME_TEAM'); // WinnerA won
+  });
+
+  it('propagates a finished R32 winner into its Round-of-16 slot', () => {
+    const teams = [...completeGroup('A'), ...completeGroup('B')];
+    const runnerA = teams.find((t) => t.group === 'A' && t.position === 2)!;
+    const runnerB = teams.find((t) => t.group === 'B' && t.position === 2)!;
+    // M73 = Runner-up A vs Runner-up B; Runner-up A wins. Feeds M90 home.
+    const fx73 = fixture({
+      stage: 'LAST_32',
+      status: 'FINISHED',
+      winner: 'HOME_TEAM',
+      scoreHome: 1,
+      scoreAway: 0,
+      homeTeam: {api_id: runnerA.api_id, name: runnerA.name, logo: ''},
+      awayTeam: {api_id: runnerB.api_id, name: runnerB.name, logo: ''}
+    });
+    const m90 = find(buildBracket(teams, [fx73]), 90); // home = Winner M73
+    expect(m90.home).toMatchObject({api_id: runnerA.api_id, resolved: true});
+  });
+
+  it('leaves a slot unjoined (placeholder, no score) before the draw', () => {
+    const teams = completeGroup('A');
+    const m79 = find(buildBracket(teams, []), 79);
+    expect(m79.away.resolved).toBe(false);
+    expect(m79.scoreHome).toBeNull();
+    expect(m79.status).toBe('SCHEDULED');
   });
 });
 

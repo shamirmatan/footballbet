@@ -1,3 +1,6 @@
+import {ITeam} from '../models/Team';
+import {IMatch} from '../models/Match';
+
 export type Stage =
   | 'LAST_32'
   | 'LAST_16'
@@ -65,9 +68,6 @@ const r = (group: string): SideDef => ({type: 'runnerUp', group})
 const t = (candidates: string[]): SideDef => ({type: 'third', candidates})
 const mw = (match: number): SideDef => ({type: 'matchWinner', match})
 const ml = (match: number): SideDef => ({type: 'matchLoser', match})
-
-import {ITeam} from '../models/Team';
-import {IMatch} from '../models/Match';
 
 const STAGE_LABELS: Record<Stage, string> = {
   FINAL: 'Final',
@@ -179,26 +179,128 @@ const computeQualifiedThirds = (groups: Map<string, ITeam[]>): QualifiedThird[] 
   }));
 };
 
-export const buildBracket = (teams: ITeam[], _matches: IMatch[]): Bracket => {
+// The resolved deterministic side's team id uniquely identifies its knockout
+// fixture (a team plays only one match per round), so we never need to guess
+// which fixture is which by date or order.
+const findFixture = (
+  home: ResolvedSide,
+  away: ResolvedSide,
+  fixtures: IMatch[]
+): IMatch | undefined => {
+  const ids = [home.api_id, away.api_id].filter((x): x is number => x != null);
+  if (ids.length === 0) return undefined;
+  return fixtures.find((fx) => {
+    const fxIds = [fx.homeTeam.api_id, fx.awayTeam.api_id].filter(
+      (x): x is number => x != null
+    );
+    return ids.every((id) => fxIds.includes(id));
+  });
+};
+
+const sideFromFixtureTeam = (team: IMatch['homeTeam']): ResolvedSide =>
+  team.api_id != null
+    ? {api_id: team.api_id, name: team.name, logo: team.logo, resolved: true}
+    : placeholder('TBD');
+
+interface AppliedFixture {
+  home: ResolvedSide;
+  away: ResolvedSide;
+  scoreHome: number | null;
+  scoreAway: number | null;
+  winner: BracketMatch['winner'];
+  status: string;
+  utcDate: string;
+}
+
+// Re-orient the fixture onto our structural home/away, anchored on whichever
+// side we already resolved from standings/feeders.
+const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): AppliedFixture => {
+  const homeId = home.api_id;
+  const awayId = away.api_id;
+  let homeIsFxHome: boolean;
+  if (homeId != null && homeId === fx.homeTeam.api_id) homeIsFxHome = true;
+  else if (homeId != null && homeId === fx.awayTeam.api_id) homeIsFxHome = false;
+  else if (awayId != null && awayId === fx.homeTeam.api_id) homeIsFxHome = false;
+  else homeIsFxHome = true; // awayId matches fx.awayTeam, or harmless fallback
+
+  const homeFxTeam = homeIsFxHome ? fx.homeTeam : fx.awayTeam;
+  const awayFxTeam = homeIsFxHome ? fx.awayTeam : fx.homeTeam;
+
+  const fxWinSide = fx.winner === 'HOME_TEAM' ? 'home' : fx.winner === 'AWAY_TEAM' ? 'away' : null;
+  let winner: BracketMatch['winner'] = null;
+  if (fxWinSide) {
+    const ourHomeFxSide = homeIsFxHome ? 'home' : 'away';
+    winner = fxWinSide === ourHomeFxSide ? 'HOME_TEAM' : 'AWAY_TEAM';
+  } else if (fx.winner === 'DRAW') {
+    winner = 'DRAW';
+  }
+
+  return {
+    home: home.resolved ? home : sideFromFixtureTeam(homeFxTeam),
+    away: away.resolved ? away : sideFromFixtureTeam(awayFxTeam),
+    scoreHome: homeIsFxHome ? fx.scoreHome : fx.scoreAway,
+    scoreAway: homeIsFxHome ? fx.scoreAway : fx.scoreHome,
+    winner,
+    status: fx.status,
+    utcDate: fx.utcDate
+  };
+};
+
+export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
   const groups = groupsByLetter(teams);
   const results = new Map<number, FeederResult>();
   const built = new Map<number, BracketMatch>();
 
+  const fixturesByStage = new Map<Stage, IMatch[]>();
+  for (const m of matches) {
+    if (!STAGE_ORDER.includes(m.stage as Stage)) continue;
+    const arr = fixturesByStage.get(m.stage as Stage) ?? [];
+    arr.push(m);
+    fixturesByStage.set(m.stage as Stage, arr);
+  }
+
   // Ascending fifaMatch so feeder results exist before dependent slots resolve.
   for (const slot of [...BRACKET].sort((a, b) => a.fifaMatch - b.fifaMatch)) {
-    const home = resolveSide(slot.home, groups, results);
-    const away = resolveSide(slot.away, groups, results);
+    let home = resolveSide(slot.home, groups, results);
+    let away = resolveSide(slot.away, groups, results);
+
+    let status = 'SCHEDULED';
+    let utcDate: string | null = null;
+    let scoreHome: number | null = null;
+    let scoreAway: number | null = null;
+    let winner: BracketMatch['winner'] = null;
+
+    const fx = findFixture(home, away, fixturesByStage.get(slot.stage) ?? []);
+    if (fx) {
+      const applied = applyFixture(home, away, fx);
+      home = applied.home;
+      away = applied.away;
+      status = applied.status;
+      utcDate = applied.utcDate;
+      scoreHome = applied.scoreHome;
+      scoreAway = applied.scoreAway;
+      winner = applied.winner;
+    }
+
     built.set(slot.fifaMatch, {
       fifaMatch: slot.fifaMatch,
       stage: slot.stage,
       home,
       away,
-      status: 'SCHEDULED',
-      utcDate: null,
-      scoreHome: null,
-      scoreAway: null,
-      winner: null
+      status,
+      utcDate,
+      scoreHome,
+      scoreAway,
+      winner
     });
+
+    // Feed the result forward to matchWinner/matchLoser slots.
+    if (status === 'FINISHED' && winner && winner !== 'DRAW' && home.resolved && away.resolved) {
+      results.set(slot.fifaMatch, {
+        winner: winner === 'HOME_TEAM' ? home : away,
+        loser: winner === 'HOME_TEAM' ? away : home
+      });
+    }
   }
 
   const stages: BracketStage[] = STAGE_ORDER.filter((stage) =>
