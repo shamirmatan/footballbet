@@ -3,7 +3,7 @@ import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
 import {map} from 'rxjs/operators';
 import {environment} from '../../environments/environment';
-import {GroupStanding, Match, TournamentState} from './tournament.model';
+import {Bracket, GroupStanding, Match, TournamentState} from './tournament.model';
 
 @Injectable({providedIn: 'root'})
 export class TournamentService {
@@ -23,5 +23,9 @@ export class TournamentService {
     return this.http
       .get<{matches: Match[]}>(`${environment.apiUrl}/matches`)
       .pipe(map((r) => r.matches));
+  }
+
+  getBracket(): Observable<Bracket> {
+    return this.http.get<Bracket>(`${environment.apiUrl}/bracket`);
   }
 }

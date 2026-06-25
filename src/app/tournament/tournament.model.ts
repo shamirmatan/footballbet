@@ -62,3 +62,41 @@ export interface Match {
   scoreAway: number | null;
   winner: string | null;
 }
+
+export interface BracketSide {
+  api_id: number | null;
+  name: string | null;
+  logo: string | null;
+  resolved: boolean;
+}
+
+export interface BracketMatch {
+  fifaMatch: number;
+  stage: string;
+  home: BracketSide;
+  away: BracketSide;
+  status: string;
+  utcDate: string | null;
+  scoreHome: number | null;
+  scoreAway: number | null;
+  winner: string | null;
+}
+
+export interface BracketStage {
+  stage: string;
+  label: string;
+  matches: BracketMatch[];
+}
+
+export interface QualifiedThird {
+  api_id: number;
+  name: string;
+  logo: string | null;
+  group: string;
+  in: boolean;
+}
+
+export interface Bracket {
+  stages: BracketStage[];
+  qualifiedThirds: QualifiedThird[];
+}
