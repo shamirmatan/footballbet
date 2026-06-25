@@ -8,6 +8,7 @@ import teamRoutes from './routes/Team';
 import tournamentRoutes from './routes/Tournament';
 import groupRoutes from './routes/Groups';
 import matchRoutes from './routes/Matches';
+import bracketRoutes from './routes/Bracket';
 import authRoutes from './routes/Auth';
 import {seedAdmins} from './config/firebase';
 import {startCronJobs} from './cron/scheduler';
@@ -62,6 +63,7 @@ const StartServer = () => {
   router.use('/api/tournament', tournamentRoutes);
   router.use('/api/groups', groupRoutes);
   router.use('/api/matches', matchRoutes);
+  router.use('/api/bracket', bracketRoutes);
   router.use('/api/auth', authRoutes);
 
   /** Error handling */
