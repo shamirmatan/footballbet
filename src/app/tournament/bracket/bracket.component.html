@@ -29,7 +29,7 @@
       <div class="tree-headers" [style.width.px]="treeWidth">
         <div
           class="tree-headers__col"
-          *ngFor="let col of columns"
+          *ngFor="let col of columns; trackBy: trackByColumn"
           [style.width.px]="columnWidth"
         >
           {{ col.label }}
@@ -54,7 +54,7 @@
         </svg>
 
         <!-- Columns of match cards -->
-        <div class="tree__col" *ngFor="let col of columns">
+        <div class="tree__col" *ngFor="let col of columns; trackBy: trackByColumn">
           <article
             class="card"
             *ngFor="let c of col.cards; trackBy: trackByMatch"

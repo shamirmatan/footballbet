@@ -74,7 +74,6 @@ export class BracketComponent implements OnInit {
 
   columns: BracketColumn[] = [];
   thirdPlace: BracketMatch | null = null;
-  thirdPlaceCy = 0;
   qualifiedThirds: QualifiedThird[] = [];
 
   connectors: Connector[] = [];
@@ -192,9 +191,6 @@ export class BracketComponent implements OnInit {
       }
     }
     this.connectors = connectors;
-
-    // Position the third-place card alongside the Final.
-    this.thirdPlaceCy = cy.get(ROOT) ?? this.treeHeight / 2;
   }
 
   // ---- side / status helpers ----
@@ -225,6 +221,10 @@ export class BracketComponent implements OnInit {
       hour: 'numeric',
       minute: '2-digit'
     });
+  }
+
+  trackByColumn(_i: number, col: BracketColumn): string {
+    return col.stage;
   }
 
   trackByMatch(_i: number, c: BracketCard): number {
