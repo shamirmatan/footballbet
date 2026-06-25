@@ -1,56 +1,139 @@
 <div class="bracket">
   <img *ngIf="loading" class="ball-spinner" src="assets/trionda.png" alt="Loading…" />
 
-  <p class="empty" *ngIf="!loading && stages.length === 0">
+  <p class="empty" *ngIf="!loading && !hasStages">
     Knockout fixtures appear once the bracket is drawn.
   </p>
 
-  <section
-    class="stage"
-    *ngFor="let s of stages"
-    [class.stage--open]="isExpanded(s.stage)"
-  >
-    <button
-      type="button"
-      class="stage__header"
-      (click)="toggle(s.stage)"
-      [attr.aria-expanded]="isExpanded(s.stage)"
-    >
-      <span class="stage__title">{{ s.label }}</span>
-      <span class="stage__meta">
-        <span class="stage__status" [ngClass]="{'stage__status--live': s.hasLive, 'stage__status--done': s.allFinished}">
-          <span class="live-dot" *ngIf="s.hasLive" aria-hidden="true"></span>
-          {{ stageStatusLabel(s) }}
-        </span>
-        <mat-icon class="stage__chevron">{{ isExpanded(s.stage) ? 'expand_less' : 'expand_more' }}</mat-icon>
-      </span>
-    </button>
-
-    <ul class="stage__matches" *ngIf="isExpanded(s.stage)">
-      <li class="match" *ngFor="let m of s.matches; trackBy: trackByApiId" [class.match--live]="m.status === 'IN_PLAY' || m.status === 'PAUSED'">
-        <div class="match__sides">
-          <div class="match__side" [class.match__side--loser]="loser(m) === 'home'">
-            <span class="match__flag">
-              <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name || 'TBD'">
-            </span>
-            <span class="match__name">{{ m.homeTeam.name || 'TBD' }}</span>
-            <span class="match__score" *ngIf="m.scoreHome !== null">{{ m.scoreHome }}</span>
-          </div>
-          <div class="match__side" [class.match__side--loser]="loser(m) === 'away'">
-            <span class="match__flag">
-              <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name || 'TBD'">
-            </span>
-            <span class="match__name">{{ m.awayTeam.name || 'TBD' }}</span>
-            <span class="match__score" *ngIf="m.scoreAway !== null">{{ m.scoreAway }}</span>
-          </div>
-        </div>
-        <div class="match__meta">
-          <span class="match__status" [ngClass]="{'match__status--live': m.status === 'IN_PLAY' || m.status === 'PAUSED', 'match__status--final': m.status === 'FINISHED'}">
-            <span class="live-dot" *ngIf="m.status === 'IN_PLAY' || m.status === 'PAUSED'" aria-hidden="true"></span>
-            {{ matchStatusLabel(m) }}
+  <ng-container *ngIf="!loading && hasStages">
+    <!-- Qualified 3rd-place teams strip -->
+    <section class="thirds" *ngIf="qualifiedThirds.length">
+      <h3 class="thirds__title">Qualified 3rd-place teams</h3>
+      <ul class="thirds__list">
+        <li
+          class="third"
+          *ngFor="let t of qualifiedThirds; trackBy: trackByThird"
+          [class.third--in]="t.in"
+        >
+          <span class="third__flag">
+            <img *ngIf="t.logo" [src]="t.logo" [alt]="t.name" />
           </span>
+          <span class="third__name">{{ t.name }}</span>
+          <span class="third__group">{{ t.group }}</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- Horizontally-scrollable bracket tree -->
+    <div class="tree-scroll">
+      <div class="tree-headers" [style.width.px]="treeWidth">
+        <div
+          class="tree-headers__col"
+          *ngFor="let col of columns"
+          [style.width.px]="columnWidth"
+        >
+          {{ col.label }}
         </div>
-      </li>
-    </ul>
-  </section>
+      </div>
+
+      <div
+        class="tree"
+        [style.width.px]="treeWidth"
+        [style.height.px]="treeHeight"
+      >
+        <!-- Connector lines -->
+        <svg
+          class="tree__lines"
+          [attr.width]="treeWidth"
+          [attr.height]="treeHeight"
+          [attr.viewBox]="'0 0 ' + treeWidth + ' ' + treeHeight"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path *ngFor="let c of connectors" [attr.d]="c.d" class="connector" />
+        </svg>
+
+        <!-- Columns of match cards -->
+        <div class="tree__col" *ngFor="let col of columns">
+          <article
+            class="card"
+            *ngFor="let c of col.cards; trackBy: trackByMatch"
+            [class.card--live]="isLive(c.match)"
+            [style.top.px]="c.cy - cardHeight / 2"
+            [style.width.px]="columnWidth"
+          >
+            <div
+              class="card__side"
+              [class.card__side--loser]="loserSide(c.match) === 'home'"
+              [class.card__side--tbd]="!c.match.home.resolved"
+            >
+              <span class="card__flag">
+                <img *ngIf="c.match.home.logo" [src]="c.match.home.logo" [alt]="c.match.home.name || 'TBD'" />
+              </span>
+              <span class="card__name">{{ c.match.home.name || 'TBD' }}</span>
+              <span class="card__score" *ngIf="c.match.scoreHome !== null">{{ c.match.scoreHome }}</span>
+            </div>
+            <div
+              class="card__side"
+              [class.card__side--loser]="loserSide(c.match) === 'away'"
+              [class.card__side--tbd]="!c.match.away.resolved"
+            >
+              <span class="card__flag">
+                <img *ngIf="c.match.away.logo" [src]="c.match.away.logo" [alt]="c.match.away.name || 'TBD'" />
+              </span>
+              <span class="card__name">{{ c.match.away.name || 'TBD' }}</span>
+              <span class="card__score" *ngIf="c.match.scoreAway !== null">{{ c.match.scoreAway }}</span>
+            </div>
+            <span
+              class="card__status"
+              *ngIf="statusLabel(c.match)"
+              [class.card__status--live]="isLive(c.match)"
+              [class.card__status--final]="c.match.status === 'FINISHED'"
+            >
+              <span class="live-dot" *ngIf="isLive(c.match)" aria-hidden="true"></span>
+              {{ statusLabel(c.match) }}
+            </span>
+          </article>
+        </div>
+      </div>
+    </div>
+
+    <!-- Third-place match: small standalone card -->
+    <section class="thirdplace" *ngIf="thirdPlace">
+      <h3 class="thirdplace__title">Third-place match</h3>
+      <article class="card card--standalone" [class.card--live]="isLive(thirdPlace)">
+        <div
+          class="card__side"
+          [class.card__side--loser]="loserSide(thirdPlace) === 'home'"
+          [class.card__side--tbd]="!thirdPlace.home.resolved"
+        >
+          <span class="card__flag">
+            <img *ngIf="thirdPlace.home.logo" [src]="thirdPlace.home.logo" [alt]="thirdPlace.home.name || 'TBD'" />
+          </span>
+          <span class="card__name">{{ thirdPlace.home.name || 'TBD' }}</span>
+          <span class="card__score" *ngIf="thirdPlace.scoreHome !== null">{{ thirdPlace.scoreHome }}</span>
+        </div>
+        <div
+          class="card__side"
+          [class.card__side--loser]="loserSide(thirdPlace) === 'away'"
+          [class.card__side--tbd]="!thirdPlace.away.resolved"
+        >
+          <span class="card__flag">
+            <img *ngIf="thirdPlace.away.logo" [src]="thirdPlace.away.logo" [alt]="thirdPlace.away.name || 'TBD'" />
+          </span>
+          <span class="card__name">{{ thirdPlace.away.name || 'TBD' }}</span>
+          <span class="card__score" *ngIf="thirdPlace.scoreAway !== null">{{ thirdPlace.scoreAway }}</span>
+        </div>
+        <span
+          class="card__status"
+          *ngIf="statusLabel(thirdPlace)"
+          [class.card__status--live]="isLive(thirdPlace)"
+          [class.card__status--final]="thirdPlace.status === 'FINISHED'"
+        >
+          <span class="live-dot" *ngIf="isLive(thirdPlace)" aria-hidden="true"></span>
+          {{ statusLabel(thirdPlace) }}
+        </span>
+      </article>
+    </section>
+  </ng-container>
 </div>

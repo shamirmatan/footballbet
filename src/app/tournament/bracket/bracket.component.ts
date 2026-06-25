@@ -1,33 +1,67 @@
 import {Component, OnInit} from '@angular/core';
 import {TournamentService} from '../tournament.service';
-import {Match} from '../tournament.model';
+import {Bracket, BracketMatch, QualifiedThird} from '../tournament.model';
 
-interface StageGroup {
-  stage: string;
-  label: string;
-  matches: Match[];
-  hasLive: boolean;
-  hasUpcoming: boolean;
-  allFinished: boolean;
-}
+/**
+ * Presentation-only bracket adjacency (FIFA match numbers).
+ * Each later-round match is fed by two earlier matches. Used to order the
+ * Round-of-32 column so feeders sit adjacent, and to vertically centre each
+ * child between its two feeders for the connector lines.
+ */
+const FEEDERS: Record<number, [number, number]> = {
+  // Round of 16
+  89: [74, 77], 90: [73, 75], 91: [76, 78], 92: [79, 80],
+  93: [83, 84], 94: [81, 82], 95: [86, 88], 96: [85, 87],
+  // Quarter-finals
+  97: [89, 90], 98: [93, 94], 99: [91, 92], 100: [95, 96],
+  // Semi-finals
+  101: [97, 98], 102: [99, 100],
+  // Final
+  104: [101, 102]
+};
 
-const STAGE_ORDER: string[] = [
-  'FINAL',
-  'THIRD_PLACE',
-  'SEMI_FINALS',
-  'QUARTER_FINALS',
+const ROOT = 104;
+
+/** Display order, left → right (LAST_32 first). */
+const COLUMN_ORDER: string[] = [
+  'LAST_32',
   'LAST_16',
-  'LAST_32'
+  'QUARTER_FINALS',
+  'SEMI_FINALS',
+  'FINAL'
 ];
 
-const STAGE_LABELS: Record<string, string> = {
-  FINAL: 'Final',
-  THIRD_PLACE: 'Third-place match',
-  SEMI_FINALS: 'Semi-finals',
-  QUARTER_FINALS: 'Quarter-finals',
+const COLUMN_LABELS: Record<string, string> = {
+  LAST_32: 'Round of 32',
   LAST_16: 'Round of 16',
-  LAST_32: 'Round of 32'
+  QUARTER_FINALS: 'Quarter-finals',
+  SEMI_FINALS: 'Semi-finals',
+  FINAL: 'Final'
 };
+
+/** Vertical geometry (px). One R32 "slot" = card height + gap. */
+const CARD_HEIGHT = 64;
+const SLOT_GAP = 16;
+const SLOT_HEIGHT = CARD_HEIGHT + SLOT_GAP; // centre-to-centre spacing of R32 cards
+const COLUMN_WIDTH = 220;
+const COLUMN_GAP = 56;
+
+export interface BracketCard {
+  match: BracketMatch;
+  /** Y of the card's vertical centre, in px from the top of the tree area. */
+  cy: number;
+}
+
+export interface BracketColumn {
+  stage: string;
+  label: string;
+  cards: BracketCard[];
+}
+
+export interface Connector {
+  /** path "M ... C ..." cubic bezier from a feeder's right edge to the child's left edge. */
+  d: string;
+}
 
 @Component({
   selector: 'app-bracket',
@@ -35,17 +69,27 @@ const STAGE_LABELS: Record<string, string> = {
   styleUrls: ['./bracket.component.css']
 })
 export class BracketComponent implements OnInit {
-  stages: StageGroup[] = [];
   loading = true;
-  expanded: Record<string, boolean> = {};
+  hasStages = false;
+
+  columns: BracketColumn[] = [];
+  thirdPlace: BracketMatch | null = null;
+  thirdPlaceCy = 0;
+  qualifiedThirds: QualifiedThird[] = [];
+
+  connectors: Connector[] = [];
+  treeHeight = 0;
+  treeWidth = 0;
+
+  readonly cardHeight = CARD_HEIGHT;
+  readonly columnWidth = COLUMN_WIDTH;
 
   constructor(private tournamentService: TournamentService) {}
 
   ngOnInit(): void {
-    this.tournamentService.getMatches().subscribe({
-      next: (matches) => {
-        this.stages = this.buildStages(matches);
-        this.initExpanded();
+    this.tournamentService.getBracket().subscribe({
+      next: (bracket) => {
+        this.build(bracket);
         this.loading = false;
       },
       error: () => {
@@ -54,59 +98,125 @@ export class BracketComponent implements OnInit {
     });
   }
 
-  private buildStages(matches: Match[]): StageGroup[] {
-    const byStage = new Map<string, Match[]>();
-    for (const m of matches) {
-      if (m.stage === 'GROUP_STAGE') continue;
-      const arr = byStage.get(m.stage) ?? [];
-      arr.push(m);
-      byStage.set(m.stage, arr);
+  private build(bracket: Bracket): void {
+    this.qualifiedThirds = bracket.qualifiedThirds ?? [];
+
+    const byNumber = new Map<number, BracketMatch>();
+    const byStage = new Map<string, BracketMatch[]>();
+    for (const stage of bracket.stages ?? []) {
+      for (const m of stage.matches) {
+        byNumber.set(m.fifaMatch, m);
+        const arr = byStage.get(m.stage) ?? [];
+        arr.push(m);
+        byStage.set(m.stage, arr);
+      }
     }
 
-    return STAGE_ORDER.filter((s) => byStage.has(s)).map((stage) => {
-      const list = (byStage.get(stage) ?? []).sort((a, b) =>
-        a.utcDate.localeCompare(b.utcDate)
-      );
-      return {
-        stage,
-        label: STAGE_LABELS[stage] ?? stage,
-        matches: list,
-        hasLive: list.some((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED'),
-        hasUpcoming: list.some((m) => m.status === 'TIMED' || m.status === 'SCHEDULED'),
-        allFinished: list.every((m) => m.status === 'FINISHED')
-      };
+    this.thirdPlace = (byStage.get('THIRD_PLACE') ?? [])[0] ?? null;
+
+    const hasTree = COLUMN_ORDER.some((s) => byStage.has(s));
+    this.hasStages = hasTree || !!this.thirdPlace;
+    if (!hasTree) {
+      this.columns = [];
+      this.connectors = [];
+      return;
+    }
+
+    // 1. Leaf order: depth-first walk from the Final so the two feeders of
+    //    every match are adjacent in their column.
+    const leafOrder: number[] = [];
+    const walk = (n: number) => {
+      const feeders = FEEDERS[n];
+      if (!feeders) {
+        leafOrder.push(n);
+        return;
+      }
+      walk(feeders[0]);
+      walk(feeders[1]);
+    };
+    walk(ROOT);
+
+    // 2. y of every match. Leaves get evenly spaced slots; each parent's y is
+    //    the average of its two feeders.
+    const cy = new Map<number, number>();
+    leafOrder.forEach((n, i) => {
+      cy.set(n, i * SLOT_HEIGHT + CARD_HEIGHT / 2);
     });
-  }
+    const resolveCy = (n: number): number => {
+      if (cy.has(n)) return cy.get(n)!;
+      const feeders = FEEDERS[n];
+      const v = (resolveCy(feeders[0]) + resolveCy(feeders[1])) / 2;
+      cy.set(n, v);
+      return v;
+    };
+    resolveCy(ROOT);
 
-  private initExpanded(): void {
-    // Expand the stage that has a live match (if any), or the nearest
-    // upcoming stage (closest non-finished match), or the most advanced
-    // completed stage. Everything else starts collapsed.
-    const live = this.stages.find((s) => s.hasLive);
-    if (live) {
-      this.expanded[live.stage] = true;
-      return;
+    this.treeHeight = leafOrder.length * SLOT_HEIGHT - SLOT_GAP;
+    this.treeWidth = COLUMN_ORDER.length * COLUMN_WIDTH + (COLUMN_ORDER.length - 1) * COLUMN_GAP;
+
+    // 3. Columns with positioned cards.
+    this.columns = COLUMN_ORDER.filter((s) => byStage.has(s)).map((stage) => {
+      const matches = byStage.get(stage) ?? [];
+      const cards = matches
+        .map((match) => ({match, cy: cy.get(match.fifaMatch) ?? CARD_HEIGHT / 2}))
+        .sort((a, b) => a.cy - b.cy);
+      return {stage, label: COLUMN_LABELS[stage] ?? stage, cards};
+    });
+
+    // 4. Connectors: from each feeder's right edge to its child's left edge.
+    const colIndex = new Map<string, number>();
+    COLUMN_ORDER.forEach((s, i) => colIndex.set(s, i));
+    const xLeft = (stage: string) => (colIndex.get(stage) ?? 0) * (COLUMN_WIDTH + COLUMN_GAP);
+    const xRight = (stage: string) => xLeft(stage) + COLUMN_WIDTH;
+
+    const stageOf = (n: number): string | null => byNumber.get(n)?.stage ?? null;
+
+    const connectors: Connector[] = [];
+    for (const childStr of Object.keys(FEEDERS)) {
+      const child = Number(childStr);
+      const childStage = stageOf(child);
+      if (!childStage || childStage === 'THIRD_PLACE') continue;
+      const childX = xLeft(childStage);
+      const childY = cy.get(child);
+      if (childY == null) continue;
+      for (const feeder of FEEDERS[child]) {
+        const feederStage = stageOf(feeder);
+        if (!feederStage) continue;
+        const fx = xRight(feederStage);
+        const fy = cy.get(feeder);
+        if (fy == null) continue;
+        const midX = (fx + childX) / 2;
+        connectors.push({
+          d: `M ${fx} ${fy} C ${midX} ${fy}, ${midX} ${childY}, ${childX} ${childY}`
+        });
+      }
     }
-    const upcoming = [...this.stages]
-      .reverse()
-      .find((s) => s.hasUpcoming);
-    if (upcoming) {
-      this.expanded[upcoming.stage] = true;
-      return;
-    }
-    const mostAdvancedFinished = this.stages.find((s) => s.allFinished);
-    if (mostAdvancedFinished) this.expanded[mostAdvancedFinished.stage] = true;
+    this.connectors = connectors;
+
+    // Position the third-place card alongside the Final.
+    this.thirdPlaceCy = cy.get(ROOT) ?? this.treeHeight / 2;
   }
 
-  toggle(stage: string): void {
-    this.expanded[stage] = !this.expanded[stage];
+  // ---- side / status helpers ----
+
+  loserSide(m: BracketMatch): 'home' | 'away' | null {
+    if (m.winner === 'HOME_TEAM') return 'away';
+    if (m.winner === 'AWAY_TEAM') return 'home';
+    return null;
   }
 
-  isExpanded(stage: string): boolean {
-    return !!this.expanded[stage];
+  isLive(m: BracketMatch): boolean {
+    return m.status === 'IN_PLAY' || m.status === 'PAUSED';
   }
 
-  formatKickoff(utcDate: string): string {
+  statusLabel(m: BracketMatch): string {
+    if (this.isLive(m)) return 'LIVE';
+    if (m.status === 'FINISHED') return 'FT';
+    if (m.utcDate) return this.formatKickoff(m.utcDate);
+    return '';
+  }
+
+  private formatKickoff(utcDate: string): string {
     const d = new Date(utcDate);
     return d.toLocaleString(undefined, {
       weekday: 'short',
@@ -117,41 +227,11 @@ export class BracketComponent implements OnInit {
     });
   }
 
-  stageStatusLabel(s: StageGroup): string {
-    if (s.hasLive) return 'Live';
-    if (s.allFinished) return 'Finished';
-    if (s.hasUpcoming) {
-      const next = s.matches.find(
-        (m) => m.status === 'TIMED' || m.status === 'SCHEDULED'
-      );
-      if (next) {
-        const d = new Date(next.utcDate);
-        return `Starts ${d.toLocaleDateString(undefined, {
-          month: 'short',
-          day: 'numeric'
-        })}`;
-      }
-    }
-    return '';
+  trackByMatch(_i: number, c: BracketCard): number {
+    return c.match.fifaMatch;
   }
 
-  matchStatusLabel(m: Match): string {
-    if (m.status === 'IN_PLAY' || m.status === 'PAUSED') return 'LIVE';
-    if (m.status === 'FINISHED') return 'FT';
-    if (m.status === 'POSTPONED') return 'Postponed';
-    if (m.status === 'CANCELLED') return 'Cancelled';
-    if (m.status === 'AWARDED') return 'Awarded';
-    return this.formatKickoff(m.utcDate);
-  }
-
-  trackByApiId(_i: number, m: Match): number {
-    return m.api_id;
-  }
-
-  loser(m: Match): 'home' | 'away' | null {
-    if (m.status !== 'FINISHED') return null;
-    if (m.winner === 'HOME_TEAM') return 'away';
-    if (m.winner === 'AWAY_TEAM') return 'home';
-    return null;
+  trackByThird(_i: number, t: QualifiedThird): number {
+    return t.api_id;
   }
 }

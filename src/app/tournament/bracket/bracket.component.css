@@ -2,10 +2,6 @@
   display: block;
 }
 
-.center-spinner {
-  margin: 48px auto;
-}
-
 .empty {
   text-align: center;
   color: var(--color-ink-500);
@@ -15,122 +11,200 @@
 .bracket {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 18px;
 }
 
-.stage {
+/* ---------- Qualified 3rd-place strip ---------- */
+
+.thirds {
   background: var(--color-card);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-soft);
-  overflow: hidden;
+  padding: 14px 16px;
 }
 
-.stage__header {
-  width: 100%;
-  border: 0;
-  background: transparent;
-  padding: 16px 18px;
+.thirds__title {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-ink-500);
+}
+
+.thirds__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.third {
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  font-family: inherit;
-  text-align: left;
+  gap: 7px;
+  padding: 5px 10px 5px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--color-cream);
+  border: 1px solid var(--color-border);
+  opacity: 0.55;
+}
+
+.third--in {
+  opacity: 1;
+  border-color: var(--color-pitch-500);
+  background: rgba(60, 172, 59, 0.08);
+}
+
+.third__flag {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.third__flag img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.third__name {
+  font-size: 13px;
+  font-weight: 600;
   color: var(--color-ink-900);
 }
 
-.stage__header:hover {
-  background: rgba(0, 0, 0, 0.015);
+.third__group {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--color-ink-500);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 1px 6px;
 }
 
-.stage__title {
-  font-size: 16px;
-  font-weight: 700;
-  letter-spacing: 0.3px;
+.third--in .third__group {
+  color: var(--color-pitch-700);
+  border-color: var(--color-pitch-500);
 }
 
-.stage__meta {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
+/* ---------- Bracket tree ---------- */
+
+.tree-scroll {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 4px 4px 12px;
+  -webkit-overflow-scrolling: touch;
 }
 
-.stage__status {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
+.tree-headers {
+  display: flex;
+  gap: 56px; /* COLUMN_GAP */
+  margin-bottom: 10px;
+  position: sticky;
+  left: 0;
+}
+
+.tree-headers__col {
+  flex: none;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
   text-transform: uppercase;
-  color: var(--color-ink-500);
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  color: var(--color-navy-700);
+  text-align: center;
 }
 
-.stage__status--live {
-  color: #b91c1c;
-}
-
-.stage__status--done {
-  color: var(--color-pitch-500);
-}
-
-.stage__chevron {
-  color: var(--color-ink-500);
-  font-size: 20px;
-  width: 20px;
-  height: 20px;
-}
-
-.stage__matches {
-  list-style: none;
-  margin: 0;
-  padding: 0 14px 14px;
+.tree {
+  position: relative;
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  gap: 56px; /* COLUMN_GAP */
 }
 
-.match {
+.tree__lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.connector {
+  fill: none;
+  stroke: var(--color-border);
+  stroke-width: 1.5;
+}
+
+.tree__col {
+  position: relative;
+  flex: none;
+  width: 220px; /* COLUMN_WIDTH */
+  z-index: 1;
+}
+
+/* ---------- Match card ---------- */
+
+.card {
+  position: absolute;
+  left: 0;
+  box-sizing: border-box;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
-  background: var(--color-cream);
-  padding: 10px 12px;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-}
-
-.match--live {
-  background: rgba(239, 68, 68, 0.06);
-  border: 1px solid rgba(239, 68, 68, 0.2);
-}
-
-.match__sides {
+  box-shadow: var(--shadow-soft);
+  padding: 6px 10px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  justify-content: center;
+  gap: 2px;
 }
 
-.match__side {
+.card--live {
+  border-color: rgba(230, 29, 37, 0.4);
+  box-shadow: 0 0 0 1px rgba(230, 29, 37, 0.25), var(--shadow-soft);
+  background: rgba(230, 29, 37, 0.04);
+}
+
+.card__side {
   display: grid;
-  grid-template-columns: 22px minmax(0, 1fr) auto;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
+  padding: 3px 0;
 }
 
-.match__side--loser .match__name,
-.match__side--loser .match__score {
+.card__side + .card__side {
+  border-top: 1px solid var(--color-border);
+}
+
+.card__side--loser .card__name,
+.card__side--loser .card__score {
   color: var(--color-ink-500);
 }
 
-.match__side--loser .match__name {
+.card__side--loser .card__name {
   text-decoration: line-through;
 }
 
-.match__flag {
-  width: 22px;
-  height: 22px;
+.card__side--tbd .card__name {
+  font-style: italic;
+  color: var(--color-ink-500);
+  font-weight: 500;
+}
+
+.card__flag {
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   overflow: hidden;
   background: #fff;
@@ -140,65 +214,92 @@
   justify-content: center;
 }
 
-.match__flag img {
+.card__flag img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
-.match__name {
+.card__name {
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
   color: var(--color-ink-900);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.match__score {
+.card__score {
   font-weight: 800;
-  font-size: 16px;
+  font-size: 14px;
   color: var(--color-ink-900);
   font-variant-numeric: tabular-nums;
-  min-width: 18px;
+  min-width: 14px;
   text-align: right;
 }
 
-.match__meta {
-  align-self: stretch;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  /* Reserve enough room for "● LIVE" so that FT/LIVE rows align their
-     scores at the same X. Kickoff-time rows (no score shown) can expand
-     past this width. */
-  min-width: 52px;
-}
-
-.match__status {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.4px;
+.card__status {
+  position: absolute;
+  top: -8px;
+  right: 8px;
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--color-ink-500);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-pill);
+  padding: 1px 7px;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 4px;
   white-space: nowrap;
+  line-height: 1.4;
 }
 
-.match__status--live {
+.card__status--live {
   color: #b91c1c;
+  border-color: rgba(230, 29, 37, 0.4);
 }
 
-.match__status--final {
-  color: var(--color-pitch-500);
+.card__status--final {
+  color: var(--color-pitch-700);
+  border-color: var(--color-pitch-500);
 }
+
+/* ---------- Third-place standalone card ---------- */
+
+.thirdplace {
+  background: var(--color-card);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  padding: 14px 16px;
+}
+
+.thirdplace__title {
+  margin: 0 0 10px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--color-ink-500);
+}
+
+.card--standalone {
+  position: relative;
+  left: auto;
+  top: auto;
+  width: 100%;
+  max-width: 280px;
+}
+
+/* ---------- Live dot ---------- */
 
 .live-dot {
   display: inline-block;
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #ef4444;
   box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
@@ -207,13 +308,6 @@
 
 @keyframes pulse {
   0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
-  70% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+  70% { box-shadow: 0 0 0 7px rgba(239, 68, 68, 0); }
   100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-}
-
-@media (max-width: 480px) {
-  .stage__header { padding: 14px 14px; }
-  .match { padding: 10px; }
-  .match__name { font-size: 13px; }
-  .match__score { font-size: 15px; }
 }
