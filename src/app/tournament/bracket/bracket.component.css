@@ -71,6 +71,10 @@
   position: absolute;
   left: 0;
   box-sizing: border-box;
+  /* Height is pinned to the CARD_HEIGHT constant in bracket.component.ts: the
+     SVG connectors anchor to each card's computed vertical centre, so the
+     rendered height must match the layout math or endpoints drift. */
+  height: 64px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
