@@ -2,7 +2,7 @@ import {Component, OnDestroy, OnInit} from '@angular/core';
 import {Subscription} from 'rxjs';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
-import {Bracket, BracketMatch, QualifiedThird} from '../tournament.model';
+import {Bracket, BracketMatch} from '../tournament.model';
 
 /**
  * Presentation-only bracket adjacency (FIFA match numbers).
@@ -75,8 +75,6 @@ export class BracketComponent implements OnInit, OnDestroy {
   hasStages = false;
 
   columns: BracketColumn[] = [];
-  thirdPlace: BracketMatch | null = null;
-  qualifiedThirds: QualifiedThird[] = [];
 
   connectors: Connector[] = [];
   treeHeight = 0;
@@ -124,8 +122,6 @@ export class BracketComponent implements OnInit, OnDestroy {
   }
 
   private build(bracket: Bracket): void {
-    this.qualifiedThirds = bracket.qualifiedThirds ?? [];
-
     const byNumber = new Map<number, BracketMatch>();
     const byStage = new Map<string, BracketMatch[]>();
     for (const stage of bracket.stages ?? []) {
@@ -137,10 +133,8 @@ export class BracketComponent implements OnInit, OnDestroy {
       }
     }
 
-    this.thirdPlace = (byStage.get('THIRD_PLACE') ?? [])[0] ?? null;
-
     const hasTree = COLUMN_ORDER.some((s) => byStage.has(s));
-    this.hasStages = hasTree || !!this.thirdPlace;
+    this.hasStages = hasTree;
     if (!hasTree) {
       this.columns = [];
       this.connectors = [];
@@ -255,9 +249,5 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   trackByMatch(_i: number, c: BracketCard): number {
     return c.match.fifaMatch;
-  }
-
-  trackByThird(_i: number, t: QualifiedThird): number {
-    return t.api_id;
   }
 }

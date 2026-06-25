@@ -6,24 +6,6 @@
   </p>
 
   <ng-container *ngIf="!loading && hasStages">
-    <!-- Qualified 3rd-place teams strip -->
-    <section class="thirds" *ngIf="qualifiedThirds.length">
-      <h3 class="thirds__title">Qualified 3rd-place teams</h3>
-      <ul class="thirds__list">
-        <li
-          class="third"
-          *ngFor="let t of qualifiedThirds; trackBy: trackByThird"
-          [class.third--in]="t.in"
-        >
-          <span class="third__flag">
-            <img *ngIf="t.logo" [src]="t.logo" [alt]="t.name" />
-          </span>
-          <span class="third__name">{{ t.name }}</span>
-          <span class="third__group">{{ t.group }}</span>
-        </li>
-      </ul>
-    </section>
-
     <!-- Horizontally-scrollable bracket tree -->
     <div class="tree-scroll">
       <div class="tree-headers" [style.width.px]="treeWidth">
@@ -103,49 +85,5 @@
         </div>
       </div>
     </div>
-
-    <!-- Third-place match: small standalone card -->
-    <section class="thirdplace" *ngIf="thirdPlace">
-      <h3 class="thirdplace__title">Third-place match</h3>
-      <article class="card card--standalone" [class.card--live]="isLive(thirdPlace)">
-        <div
-          class="card__side"
-          [class.card__side--loser]="loserSide(thirdPlace) === 'home'"
-          [class.card__side--tbd]="!thirdPlace.home.resolved"
-        >
-          <span class="card__flag">
-            <img *ngIf="thirdPlace.home.logo" [src]="thirdPlace.home.logo" [alt]="thirdPlace.home.name || 'TBD'" />
-          </span>
-          <span class="card__name-col">
-            <span class="card__name">{{ thirdPlace.home.name || 'TBD' }}</span>
-            <span class="card__owner" *ngIf="thirdPlace.home.resolved && ownerOf(thirdPlace.home.name)">{{ ownerOf(thirdPlace.home.name) }}</span>
-          </span>
-          <span class="card__score" *ngIf="thirdPlace.scoreHome !== null">{{ thirdPlace.scoreHome }}</span>
-        </div>
-        <div
-          class="card__side"
-          [class.card__side--loser]="loserSide(thirdPlace) === 'away'"
-          [class.card__side--tbd]="!thirdPlace.away.resolved"
-        >
-          <span class="card__flag">
-            <img *ngIf="thirdPlace.away.logo" [src]="thirdPlace.away.logo" [alt]="thirdPlace.away.name || 'TBD'" />
-          </span>
-          <span class="card__name-col">
-            <span class="card__name">{{ thirdPlace.away.name || 'TBD' }}</span>
-            <span class="card__owner" *ngIf="thirdPlace.away.resolved && ownerOf(thirdPlace.away.name)">{{ ownerOf(thirdPlace.away.name) }}</span>
-          </span>
-          <span class="card__score" *ngIf="thirdPlace.scoreAway !== null">{{ thirdPlace.scoreAway }}</span>
-        </div>
-        <span
-          class="card__status"
-          *ngIf="statusLabel(thirdPlace)"
-          [class.card__status--live]="isLive(thirdPlace)"
-          [class.card__status--final]="thirdPlace.status === 'FINISHED'"
-        >
-          <span class="live-dot" *ngIf="isLive(thirdPlace)" aria-hidden="true"></span>
-          {{ statusLabel(thirdPlace) }}
-        </span>
-      </article>
-    </section>
   </ng-container>
 </div>
