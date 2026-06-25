@@ -70,7 +70,10 @@
               <span class="card__flag">
                 <img *ngIf="c.match.home.logo" [src]="c.match.home.logo" [alt]="c.match.home.name || 'TBD'" />
               </span>
-              <span class="card__name">{{ c.match.home.name || 'TBD' }}</span>
+              <span class="card__name-col">
+                <span class="card__name">{{ c.match.home.name || 'TBD' }}</span>
+                <span class="card__owner" *ngIf="c.match.home.resolved && ownerOf(c.match.home.name)">{{ ownerOf(c.match.home.name) }}</span>
+              </span>
               <span class="card__score" *ngIf="c.match.scoreHome !== null">{{ c.match.scoreHome }}</span>
             </div>
             <div
@@ -81,7 +84,10 @@
               <span class="card__flag">
                 <img *ngIf="c.match.away.logo" [src]="c.match.away.logo" [alt]="c.match.away.name || 'TBD'" />
               </span>
-              <span class="card__name">{{ c.match.away.name || 'TBD' }}</span>
+              <span class="card__name-col">
+                <span class="card__name">{{ c.match.away.name || 'TBD' }}</span>
+                <span class="card__owner" *ngIf="c.match.away.resolved && ownerOf(c.match.away.name)">{{ ownerOf(c.match.away.name) }}</span>
+              </span>
               <span class="card__score" *ngIf="c.match.scoreAway !== null">{{ c.match.scoreAway }}</span>
             </div>
             <span
@@ -110,7 +116,10 @@
           <span class="card__flag">
             <img *ngIf="thirdPlace.home.logo" [src]="thirdPlace.home.logo" [alt]="thirdPlace.home.name || 'TBD'" />
           </span>
-          <span class="card__name">{{ thirdPlace.home.name || 'TBD' }}</span>
+          <span class="card__name-col">
+            <span class="card__name">{{ thirdPlace.home.name || 'TBD' }}</span>
+            <span class="card__owner" *ngIf="thirdPlace.home.resolved && ownerOf(thirdPlace.home.name)">{{ ownerOf(thirdPlace.home.name) }}</span>
+          </span>
           <span class="card__score" *ngIf="thirdPlace.scoreHome !== null">{{ thirdPlace.scoreHome }}</span>
         </div>
         <div
@@ -121,7 +130,10 @@
           <span class="card__flag">
             <img *ngIf="thirdPlace.away.logo" [src]="thirdPlace.away.logo" [alt]="thirdPlace.away.name || 'TBD'" />
           </span>
-          <span class="card__name">{{ thirdPlace.away.name || 'TBD' }}</span>
+          <span class="card__name-col">
+            <span class="card__name">{{ thirdPlace.away.name || 'TBD' }}</span>
+            <span class="card__owner" *ngIf="thirdPlace.away.resolved && ownerOf(thirdPlace.away.name)">{{ ownerOf(thirdPlace.away.name) }}</span>
+          </span>
           <span class="card__score" *ngIf="thirdPlace.scoreAway !== null">{{ thirdPlace.scoreAway }}</span>
         </div>
         <span

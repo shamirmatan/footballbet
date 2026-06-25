@@ -218,6 +218,15 @@
   object-fit: cover;
 }
 
+.card__name-col {
+  display: flex;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .card__name {
   font-weight: 600;
   font-size: 13px;
@@ -225,6 +234,20 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  flex-shrink: 1;
+  min-width: 0;
+}
+
+.card__owner {
+  font-size: 9px;
+  font-weight: 500;
+  color: var(--color-ink-500);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.2px;
+  flex-shrink: 2;
+  min-width: 0;
 }
 
 .card__score {

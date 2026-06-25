@@ -1,4 +1,6 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Subscription} from 'rxjs';
+import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Bracket, BracketMatch, QualifiedThird} from '../tournament.model';
 
@@ -68,7 +70,7 @@ export interface Connector {
   templateUrl: './bracket.component.html',
   styleUrls: ['./bracket.component.css']
 })
-export class BracketComponent implements OnInit {
+export class BracketComponent implements OnInit, OnDestroy {
   loading = true;
   hasStages = false;
 
@@ -83,7 +85,13 @@ export class BracketComponent implements OnInit {
   readonly cardHeight = CARD_HEIGHT;
   readonly columnWidth = COLUMN_WIDTH;
 
-  constructor(private tournamentService: TournamentService) {}
+  private participants: Participant[] = [];
+  private participantsSub?: Subscription;
+
+  constructor(
+    private tournamentService: TournamentService,
+    private participantsService: ParticipantsService
+  ) {}
 
   ngOnInit(): void {
     this.tournamentService.getBracket().subscribe({
@@ -95,6 +103,24 @@ export class BracketComponent implements OnInit {
         this.loading = false;
       }
     });
+    this.participantsSub = this.participantsService
+      .getParticipantsUpdateListener()
+      .subscribe((p) => (this.participants = p));
+    this.participantsService.getParticipants();
+  }
+
+  ngOnDestroy(): void {
+    this.participantsSub?.unsubscribe();
+  }
+
+  ownerOf(teamName: string | null): string {
+    if (!teamName) return '';
+    const p = this.participants.find((participant) =>
+      participant.teams.some((t) => t.name === teamName)
+    );
+    if (!p) return '';
+    const initial = p.lastName ? `${p.lastName.charAt(0).toUpperCase()}.` : '';
+    return `${p.firstName} ${initial}`.trim();
   }
 
   private build(bracket: Bracket): void {
