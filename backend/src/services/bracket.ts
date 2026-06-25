@@ -66,6 +66,154 @@ const t = (candidates: string[]): SideDef => ({type: 'third', candidates})
 const mw = (match: number): SideDef => ({type: 'matchWinner', match})
 const ml = (match: number): SideDef => ({type: 'matchLoser', match})
 
+import {ITeam} from '../models/Team';
+import {IMatch} from '../models/Match';
+
+const STAGE_LABELS: Record<Stage, string> = {
+  FINAL: 'Final',
+  THIRD_PLACE: 'Third-place match',
+  SEMI_FINALS: 'Semi-finals',
+  QUARTER_FINALS: 'Quarter-finals',
+  LAST_16: 'Round of 16',
+  LAST_32: 'Round of 32'
+};
+
+const STAGE_ORDER: Stage[] = [
+  'FINAL',
+  'THIRD_PLACE',
+  'SEMI_FINALS',
+  'QUARTER_FINALS',
+  'LAST_16',
+  'LAST_32'
+];
+
+const THIRD_PLACE_SLOTS = 8;
+
+const placeholder = (name: string): ResolvedSide => ({
+  api_id: null,
+  name,
+  logo: null,
+  resolved: false
+});
+
+const realSide = (team: ITeam): ResolvedSide => ({
+  api_id: team.api_id,
+  name: team.name,
+  logo: team.logo || null,
+  resolved: true
+});
+
+const normalizeLetter = (group: string): string =>
+  (group || '?').replace(/^Group\s+/i, '').toUpperCase();
+
+const groupsByLetter = (teams: ITeam[]): Map<string, ITeam[]> => {
+  const map = new Map<string, ITeam[]>();
+  for (const t of teams) {
+    const letter = normalizeLetter(t.group);
+    const arr = map.get(letter) ?? [];
+    arr.push(t);
+    map.set(letter, arr);
+  }
+  for (const arr of map.values()) {
+    arr.sort((a, b) => (a.position || 99) - (b.position || 99));
+  }
+  return map;
+};
+
+// A group is decided only once every team has played its three matches.
+const isGroupComplete = (arr: ITeam[]): boolean =>
+  arr.length > 0 && arr.every((t) => t.games >= arr.length - 1);
+
+const teamAtPosition = (arr: ITeam[] | undefined, position: number): ITeam | undefined =>
+  arr?.find((t) => t.position === position);
+
+interface FeederResult {
+  winner?: ResolvedSide;
+  loser?: ResolvedSide;
+}
+
+const resolveSide = (
+  side: SideDef,
+  groups: Map<string, ITeam[]>,
+  results: Map<number, FeederResult>
+): ResolvedSide => {
+  switch (side.type) {
+    case 'winner': {
+      const arr = groups.get(side.group!);
+      const t = isGroupComplete(arr ?? []) ? teamAtPosition(arr, 1) : undefined;
+      return t ? realSide(t) : placeholder(`Winner ${side.group}`);
+    }
+    case 'runnerUp': {
+      const arr = groups.get(side.group!);
+      const t = isGroupComplete(arr ?? []) ? teamAtPosition(arr, 2) : undefined;
+      return t ? realSide(t) : placeholder(`Runner-up ${side.group}`);
+    }
+    case 'third':
+      return placeholder(`Best 3rd (${side.candidates!.join('/')})`);
+    case 'matchWinner':
+      return results.get(side.match!)?.winner ?? placeholder(`Winner of M${side.match}`);
+    case 'matchLoser':
+      return results.get(side.match!)?.loser ?? placeholder(`Loser of M${side.match}`);
+  }
+};
+
+const computeQualifiedThirds = (groups: Map<string, ITeam[]>): QualifiedThird[] => {
+  const thirds: ITeam[] = [];
+  for (const arr of groups.values()) {
+    const third = teamAtPosition(arr, 3);
+    if (third) thirds.push(third);
+  }
+  thirds.sort(
+    (a, b) =>
+      b.points - a.points ||
+      b.goalDifference - a.goalDifference ||
+      b.goalsFor - a.goalsFor ||
+      a.api_id - b.api_id
+  );
+  return thirds.map((t, i) => ({
+    api_id: t.api_id,
+    name: t.name,
+    logo: t.logo || null,
+    group: normalizeLetter(t.group),
+    in: i < THIRD_PLACE_SLOTS
+  }));
+};
+
+export const buildBracket = (teams: ITeam[], _matches: IMatch[]): Bracket => {
+  const groups = groupsByLetter(teams);
+  const results = new Map<number, FeederResult>();
+  const built = new Map<number, BracketMatch>();
+
+  // Ascending fifaMatch so feeder results exist before dependent slots resolve.
+  for (const slot of [...BRACKET].sort((a, b) => a.fifaMatch - b.fifaMatch)) {
+    const home = resolveSide(slot.home, groups, results);
+    const away = resolveSide(slot.away, groups, results);
+    built.set(slot.fifaMatch, {
+      fifaMatch: slot.fifaMatch,
+      stage: slot.stage,
+      home,
+      away,
+      status: 'SCHEDULED',
+      utcDate: null,
+      scoreHome: null,
+      scoreAway: null,
+      winner: null
+    });
+  }
+
+  const stages: BracketStage[] = STAGE_ORDER.filter((stage) =>
+    BRACKET.some((s) => s.stage === stage)
+  ).map((stage) => ({
+    stage,
+    label: STAGE_LABELS[stage],
+    matches: [...built.values()]
+      .filter((m) => m.stage === stage)
+      .sort((a, b) => a.fifaMatch - b.fifaMatch)
+  }));
+
+  return {stages, qualifiedThirds: computeQualifiedThirds(groups)};
+};
+
 export const BRACKET: BracketSlotDef[] = [
   {fifaMatch: 73, stage: 'LAST_32', home: r('A'), away: r('B')},
   {fifaMatch: 74, stage: 'LAST_32', home: w('E'), away: t(['A', 'B', 'C', 'D', 'F'])},
