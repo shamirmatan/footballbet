@@ -2,7 +2,7 @@ import Team, {ITeam} from '../models/Team';
 import Participant from '../models/Participant';
 import TournamentState, {IMatchSummary} from '../models/TournamentState';
 import Match from '../models/Match';
-import {FDCompetition, FDMatch, FDStandingGroup, FootballDataClient, Stage} from '../services/footballData';
+import {FDCompetition, FDMatch, FDStandingGroup, FDStandingRow, FootballDataClient, Stage} from '../services/footballData';
 
 const STAGE_ORDER: Stage[] = [
   'GROUP_STAGE',
@@ -37,6 +37,57 @@ const QUALIFICATION_BONUS: Record<number, number> = {
 const groupLetterFromStanding = (group: string): string => {
   const match = group.match(/Group\s+([A-Z])/i);
   return match ? match[1].toUpperCase() : group;
+};
+
+// 2026 format: 12 groups of 4. The top two of every group plus the 8 best
+// third-placed teams reach the round of 32; 4th place is always out.
+const THIRD_PLACE_SLOTS = 8;
+
+export interface GroupOutcome {
+  qualified: Set<number>; // clinched a round-of-32 spot (definite)
+  eliminated: Set<number>; // out at the group stage (definite)
+}
+
+const isGroupComplete = (g: FDStandingGroup): boolean =>
+  g.table.length > 0 && g.table.every((r) => r.playedGames >= g.table.length - 1);
+
+const compareThirds = (a: FDStandingRow, b: FDStandingRow): number =>
+  b.points - a.points ||
+  b.goalDifference - a.goalDifference ||
+  b.goalsFor - a.goalsFor ||
+  a.team.id - b.team.id;
+
+// Decide group-stage advancement from the standings rather than from knockout
+// fixtures: the round-of-32 matches carry no team ids until the whole group
+// stage finishes and the bracket is drawn, so a clinched team would otherwise
+// look like it has "no upcoming match" and be flagged eliminated.
+export const computeGroupOutcomes = (standings: FDStandingGroup[]): GroupOutcome => {
+  const qualified = new Set<number>();
+  const eliminated = new Set<number>();
+
+  const completeGroups = standings.filter(isGroupComplete);
+  const allComplete = standings.length > 0 && completeGroups.length === standings.length;
+
+  const thirds: FDStandingRow[] = [];
+  for (const g of completeGroups) {
+    for (const r of g.table) {
+      if (r.position <= 2) qualified.add(r.team.id);
+      else if (r.position >= 4) eliminated.add(r.team.id);
+      else thirds.push(r); // 3rd place — resolved below once every group is done
+    }
+  }
+
+  // Third place is only decidable when all groups have finished, since it ranks
+  // thirds across the whole tournament for the 8 wildcard slots.
+  if (allComplete) {
+    const ranked = [...thirds].sort(compareThirds);
+    ranked.forEach((r, i) => {
+      if (i < THIRD_PLACE_SLOTS) qualified.add(r.team.id);
+      else eliminated.add(r.team.id);
+    });
+  }
+
+  return {qualified, eliminated};
 };
 
 interface TeamAggregate {
@@ -92,6 +143,71 @@ const buildQualifications = (highestStage: Stage, isChampion: boolean): number =
   return isChampion ? rank + 1 : rank;
 };
 
+const KNOCKOUT_STAGES: Stage[] = [
+  'LAST_32',
+  'LAST_16',
+  'QUARTER_FINALS',
+  'SEMI_FINALS',
+  'THIRD_PLACE',
+  'FINAL'
+];
+
+// Qualification rank banked by the WINNER of a finished match at each stage —
+// i.e. the round they have just advanced INTO. Credited on the win so points
+// and "still alive" status never wait on the next fixture being drawn. A
+// THIRD_PLACE win is terminal and adds nothing over reaching the semis.
+const REACHED_ON_WIN: Record<Stage, number> = {
+  GROUP_STAGE: 0,
+  LAST_32: 2,
+  LAST_16: 3,
+  QUARTER_FINALS: 4,
+  SEMI_FINALS: 5,
+  THIRD_PLACE: 4,
+  FINAL: 6
+};
+
+export interface KnockoutOutcome {
+  reachedRank: number; // highest qualification rank reached (1..6)
+  eliminated: boolean; // knocked out of the tournament
+}
+
+// Derive knockout standing purely from finished match RESULTS, never from
+// whether the next round's fixtures carry team ids yet (they stay TBD until the
+// bracket is drawn). In single elimination one loss is out; the only twists are
+// the semi-final (loser drops to the third-place match) and the third-place
+// match itself (both sides are done afterwards).
+export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, KnockoutOutcome> => {
+  const order = (s: Stage) => STAGE_ORDER.indexOf(s);
+  const deepest = new Map<number, {stage: Stage; won: boolean}>();
+
+  for (const m of matches) {
+    if (m.status !== 'FINISHED') continue;
+    if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    const winner = m.score.winner; // reflects the pens winner for shootouts
+    if (winner !== 'HOME_TEAM' && winner !== 'AWAY_TEAM') continue;
+    for (const side of ['HOME_TEAM', 'AWAY_TEAM'] as const) {
+      const team = side === 'HOME_TEAM' ? m.homeTeam : m.awayTeam;
+      if (!team.id) continue;
+      const current = deepest.get(team.id);
+      if (!current || order(m.stage) > order(current.stage)) {
+        deepest.set(team.id, {stage: m.stage, won: winner === side});
+      }
+    }
+  }
+
+  const outcomes = new Map<number, KnockoutOutcome>();
+  for (const [id, {stage, won}] of deepest) {
+    const reachedRank = won ? REACHED_ON_WIN[stage] : QUALIFICATION_RANK[stage];
+    let eliminated: boolean;
+    if (stage === 'FINAL') eliminated = !won; // runner-up out, champion stays
+    else if (stage === 'THIRD_PLACE') eliminated = true; // both already lost the semi
+    else if (stage === 'SEMI_FINALS') eliminated = false; // loser still plays for third
+    else eliminated = !won; // R32/R16/QF: a single loss ends the run
+    outcomes.set(id, {reachedRank, eliminated});
+  }
+  return outcomes;
+};
+
 const computePoints = (agg: TeamAggregate): number => {
   // base = group-stage match points (W*3 + D). bonus covers every advancement
   // tier including the +10 for winning the final (QUALIFICATION_BONUS[6]=33
@@ -143,21 +259,37 @@ const computeGroupStatsFromMatches = (
   return stats;
 };
 
-const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamAggregate[] => {
+export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamAggregate[] => {
   const stageByTeam = computeStageByTeam(matches);
   const championId = findChampionId(matches);
   // Compute W/D/L from match data so live scores are reflected immediately,
   // rather than waiting for the standings API to update at full-time.
   const groupStats = computeGroupStatsFromMatches(matches);
+  // Advancement/elimination come from the standings (group stage) and finished
+  // match results (knockout), never from not-yet-drawn next-round fixtures.
+  const groupOutcomes = computeGroupOutcomes(standings);
+  const knockoutOutcomes = computeKnockoutOutcomes(matches);
 
   const aggregates: TeamAggregate[] = [];
   for (const group of standings) {
     const letter = groupLetterFromStanding(group.group);
     for (const row of group.table) {
-      const highest = stageByTeam.get(row.team.id) ?? 'GROUP_STAGE';
-      const isChampion = row.team.id === championId;
-      const qualifications = buildQualifications(highest, isChampion);
-      const s = groupStats.get(row.team.id);
+      const id = row.team.id;
+      const highest = stageByTeam.get(id) ?? 'GROUP_STAGE';
+      const isChampion = id === championId;
+      const knockout = knockoutOutcomes.get(id);
+      // A team drawn into a knockout fixture that has not been played yet still
+      // relies on the upcoming-match fallback for its elimination check.
+      const assignedToKnockout = highest !== 'GROUP_STAGE';
+      // Qualifications bank on the event that earns them — clinching a R32 spot
+      // (group) or winning a knockout tie — so neither points nor "alive" status
+      // waits on the next round's fixtures being drawn.
+      const qualifications = Math.max(
+        buildQualifications(highest, isChampion),
+        knockout?.reachedRank ?? 0,
+        groupOutcomes.qualified.has(id) ? 1 : 0
+      );
+      const s = groupStats.get(id);
       const games = s?.games ?? row.playedGames;
       const wins = s?.wins ?? row.won;
       const draws = s?.draws ?? row.draw;
@@ -165,7 +297,16 @@ const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamA
       const goalsFor = s?.goalsFor ?? row.goalsFor;
       const goalsAgainst = s?.goalsAgainst ?? row.goalsAgainst;
       const goalDifference = s?.goalDifference ?? row.goalDifference;
-      const eliminated = !isChampion && !hasUpcomingMatch(row.team.id, matches) && games > 0;
+      // Prefer the result-based knockout verdict; fall back to upcoming-match
+      // presence only while a drawn tie is unplayed, then the standings-based
+      // group outcome before any knockout.
+      const eliminated =
+        !isChampion &&
+        (knockout
+          ? knockout.eliminated
+          : assignedToKnockout
+            ? !hasUpcomingMatch(id, matches) && games > 0
+            : groupOutcomes.eliminated.has(id));
       aggregates.push({
         api_id: row.team.id,
         name: row.team.name,
