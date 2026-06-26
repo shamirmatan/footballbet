@@ -128,9 +128,11 @@ export class HeroComponent implements OnInit, OnDestroy {
 
   matchStatusLabel(m: Match): string {
     switch (m.status) {
-      case 'FINISHED': return 'FT';
+      case 'FINISHED':
+      case 'AWARDED': return 'FT';
       case 'IN_PLAY': return 'LIVE';
       case 'PAUSED': return 'HT';
+      case 'SUSPENDED': return 'SUSP';
       case 'POSTPONED': return 'PPD';
       case 'CANCELLED': return 'CXL';
       default: {
@@ -147,7 +149,13 @@ export class HeroComponent implements OnInit, OnDestroy {
   }
 
   hasScore(m: Match): boolean {
-    return m.status === 'FINISHED' || m.status === 'IN_PLAY' || m.status === 'PAUSED';
+    return (
+      m.status === 'FINISHED' ||
+      m.status === 'AWARDED' ||
+      m.status === 'IN_PLAY' ||
+      m.status === 'PAUSED' ||
+      m.status === 'SUSPENDED'
+    );
   }
 
 matchGroupLabel(m: Match): string {

@@ -123,7 +123,7 @@ const computeStageByTeam = (matches: FDMatch[]): Map<number, Stage> => {
 };
 
 const findChampionId = (matches: FDMatch[]): number | null => {
-  const final = matches.find((m) => m.stage === 'FINAL' && m.status === 'FINISHED');
+  const final = matches.find((m) => m.stage === 'FINAL' && (m.status === 'FINISHED' || m.status === 'AWARDED'));
   if (!final || !final.score.winner) return null;
   if (final.score.winner === 'HOME_TEAM' && final.homeTeam.id) return final.homeTeam.id;
   if (final.score.winner === 'AWAY_TEAM' && final.awayTeam.id) return final.awayTeam.id;
@@ -134,6 +134,7 @@ const hasUpcomingMatch = (apiId: number, matches: FDMatch[]): boolean =>
   matches.some(
     (m) =>
       m.status !== 'FINISHED' &&
+      m.status !== 'AWARDED' &&
       m.status !== 'CANCELLED' &&
       (m.homeTeam.id === apiId || m.awayTeam.id === apiId)
   );
@@ -229,7 +230,7 @@ const computeGroupStatsFromMatches = (
   };
   for (const m of matches) {
     if (m.stage !== 'GROUP_STAGE') continue;
-    if (m.status !== 'FINISHED' && m.status !== 'IN_PLAY' && m.status !== 'PAUSED') continue;
+    if (m.status !== 'FINISHED' && m.status !== 'AWARDED' && m.status !== 'IN_PLAY' && m.status !== 'PAUSED') continue;
     const homeId = m.homeTeam.id;
     const awayId = m.awayTeam.id;
     const gh = m.score.fullTime.home;
@@ -496,7 +497,7 @@ const aggregateTotalsFromMatches = (matches: FDMatch[]): Map<number, TotalStats>
     return totals.get(id)!;
   };
   for (const m of matches) {
-    if (m.status !== 'FINISHED') continue;
+    if (m.status !== 'FINISHED' && m.status !== 'AWARDED') continue;
     const homeId = m.homeTeam.id;
     const awayId = m.awayTeam.id;
     const gh = m.score.fullTime.home;
