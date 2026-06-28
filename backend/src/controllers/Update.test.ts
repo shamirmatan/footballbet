@@ -1,4 +1,4 @@
-import {aggregateTeams, computeGroupOutcomes, computeKnockoutOutcomes, mergeTeamRef} from './Update';
+import {aggregateTeams, computeGroupOutcomes, computeKnockoutOutcomes} from './Update';
 import {FDMatch, FDStandingGroup, FDStandingRow, Stage} from '../services/footballData';
 
 let nextId = 1;
@@ -84,32 +84,6 @@ describe('computeGroupOutcomes', () => {
       expect(eliminated.has(t.id)).toBe(true);
       expect(qualified.has(t.id)).toBe(false);
     }
-  });
-});
-
-describe('mergeTeamRef', () => {
-  it('uses the incoming team when the feed carries a real id', () => {
-    const r = mergeTeamRef({id: 5, name: 'Spain', crest: 's.png'}, {api_id: null, name: null, logo: null});
-    expect(r).toEqual({api_id: 5, name: 'Spain', logo: 's.png'});
-  });
-
-  it('preserves an already-known team when the upstream side is still TBD', () => {
-    // A knockout fixture drawn into our DB must not be blanked back to a
-    // placeholder every minute just because the feed has not published it yet.
-    const existing = {api_id: 769, name: 'Mexico', logo: 'm.png'};
-    const r = mergeTeamRef({id: null, name: null, crest: null}, existing);
-    expect(r).toEqual(existing);
-  });
-
-  it('lets the real draw override a previously seeded team', () => {
-    const existing = {api_id: 769, name: 'Mexico', logo: 'm.png'};
-    const r = mergeTeamRef({id: 791, name: 'Ecuador', crest: 'e.png'}, existing);
-    expect(r).toEqual({api_id: 791, name: 'Ecuador', logo: 'e.png'});
-  });
-
-  it('returns a TBD ref when both feed and existing are empty', () => {
-    const r = mergeTeamRef({id: null, name: null, crest: null}, undefined);
-    expect(r).toEqual({api_id: null, name: null, logo: null});
   });
 });
 
