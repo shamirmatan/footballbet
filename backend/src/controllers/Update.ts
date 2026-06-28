@@ -1,7 +1,7 @@
 import Team, {ITeam} from '../models/Team';
 import Participant from '../models/Participant';
 import TournamentState, {IMatchSummary} from '../models/TournamentState';
-import Match from '../models/Match';
+import Match, {IMatch, IMatchTeam} from '../models/Match';
 import {FDCompetition, FDMatch, FDStandingGroup, FDStandingRow, FootballDataClient, Stage} from '../services/footballData';
 
 const STAGE_ORDER: Stage[] = [
@@ -443,9 +443,32 @@ const upsertTournamentState = async (
   );
 };
 
+// Merge a feed team onto what we already store. Never blank an already-known
+// team with a TBD upstream side: a manually drawn knockout fixture must survive
+// the every-minute sync. Once the feed publishes the real draw (a non-null id)
+// it takes over again.
+export const mergeTeamRef = (
+  incoming: {id: number | null; name: string | null; crest?: string | null},
+  existing: IMatchTeam | undefined | null
+): IMatchTeam => {
+  const next: IMatchTeam = {
+    api_id: incoming.id ?? null,
+    name: incoming.name ?? null,
+    logo: incoming.crest ?? null
+  };
+  if (next.api_id == null && existing && existing.api_id != null) return existing;
+  return next;
+};
+
 const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
+  const existing = await Match.find(
+    {},
+    {api_id: 1, homeTeam: 1, awayTeam: 1}
+  ).lean<Pick<IMatch, 'api_id' | 'homeTeam' | 'awayTeam'>[]>();
+  const existingById = new Map(existing.map((d) => [d.api_id, d]));
   let upserted = 0;
   for (const m of matches) {
+    const prev = existingById.get(m.id);
     await Match.updateOne(
       {api_id: m.id},
       {
@@ -455,16 +478,8 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
           matchday: m.matchday ?? null,
           status: m.status,
           utcDate: m.utcDate,
-          homeTeam: {
-            api_id: m.homeTeam.id ?? null,
-            name: m.homeTeam.name ?? null,
-            logo: m.homeTeam.crest ?? null
-          },
-          awayTeam: {
-            api_id: m.awayTeam.id ?? null,
-            name: m.awayTeam.name ?? null,
-            logo: m.awayTeam.crest ?? null
-          },
+          homeTeam: mergeTeamRef(m.homeTeam, prev?.homeTeam),
+          awayTeam: mergeTeamRef(m.awayTeam, prev?.awayTeam),
           scoreHome: m.score.fullTime.home,
           scoreAway: m.score.fullTime.away,
           winner: m.score.winner,
