@@ -1,4 +1,9 @@
-import {aggregateTeams, computeGroupOutcomes, computeKnockoutOutcomes} from './Update';
+import {
+  aggregateTeams,
+  computeGroupOutcomes,
+  computeKnockoutMatchPoints,
+  computeKnockoutOutcomes,
+} from './Update';
 import {FDMatch, FDStandingGroup, FDStandingRow, Stage} from '../services/footballData';
 
 let nextId = 1;
@@ -98,7 +103,7 @@ const koMatch = (
   awayId: number,
   winner: 'HOME_TEAM' | 'AWAY_TEAM' | null,
   status: FDMatch['status'] = 'FINISHED',
-  duration: 'REGULAR' | 'PENALTY_SHOOTOUT' = 'REGULAR'
+  duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT' = 'REGULAR'
 ): FDMatch => ({
   id: koId++,
   stage,
@@ -162,6 +167,48 @@ describe('computeKnockoutOutcomes', () => {
       koMatch('QUARTER_FINALS', 1, 7, 'AWAY_TEAM'), // team 1 loses the QF
     ]);
     expect(out.get(1)).toEqual({reachedRank: 3, eliminated: true}); // reached QF, out there
+  });
+});
+
+describe('computeKnockoutMatchPoints', () => {
+  it('awards a regulation knockout win as a 3-point win to the winner only', () => {
+    const pts = computeKnockoutMatchPoints([koMatch('LAST_32', 1, 2, 'HOME_TEAM')]);
+    expect(pts.get(1)).toEqual({koWins: 1, koDraws: 0});
+    // The loser earns nothing, so it never gets a map entry (defaults to 0 in
+    // aggregateTeams).
+    expect(pts.get(2)).toBeUndefined();
+  });
+
+  it('scores a tie at 90 settled on penalties as a draw for both sides', () => {
+    const pts = computeKnockoutMatchPoints([
+      koMatch('QUARTER_FINALS', 1, 2, 'AWAY_TEAM', 'FINISHED', 'PENALTY_SHOOTOUT'),
+    ]);
+    expect(pts.get(1)).toEqual({koWins: 0, koDraws: 1});
+    expect(pts.get(2)).toEqual({koWins: 0, koDraws: 1});
+  });
+
+  it('scores an extra-time decider as a draw at 90 for both sides', () => {
+    const pts = computeKnockoutMatchPoints([
+      koMatch('LAST_16', 1, 2, 'HOME_TEAM', 'FINISHED', 'EXTRA_TIME'),
+    ]);
+    expect(pts.get(1)).toEqual({koWins: 0, koDraws: 1});
+    expect(pts.get(2)).toEqual({koWins: 0, koDraws: 1});
+  });
+
+  it('ignores group-stage and unfinished matches', () => {
+    const pts = computeKnockoutMatchPoints([
+      koMatch('GROUP_STAGE' as Stage, 1, 2, 'HOME_TEAM'),
+      koMatch('LAST_32', 3, 4, 'HOME_TEAM', 'TIMED'),
+    ]);
+    expect(pts.size).toBe(0);
+  });
+
+  it('accumulates points across a multi-round knockout run', () => {
+    const pts = computeKnockoutMatchPoints([
+      koMatch('LAST_32', 1, 9, 'HOME_TEAM'), // regulation win: +3
+      koMatch('LAST_16', 1, 8, 'AWAY_TEAM', 'FINISHED', 'PENALTY_SHOOTOUT'), // pens: draw
+    ]);
+    expect(pts.get(1)).toEqual({koWins: 1, koDraws: 1}); // 3 + 1 = 4 KO match points
   });
 });
 

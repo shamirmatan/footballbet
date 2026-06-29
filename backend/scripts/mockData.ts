@@ -50,6 +50,10 @@ interface TeamAccumulator {
   totalLosses: number;
   totalGoalsFor: number;
   totalGoalsAgainst: number;
+  // Knockout match points: regulation win = 3 (koWins), tie at 90' settled in
+  // ET/pens = 1 for both sides (koDraws). Kept apart from the group-stage W/D/L.
+  koWins: number;
+  koDraws: number;
   points: number;
   maxStage: string;
   isChampion: boolean;
@@ -93,6 +97,8 @@ const mkAcc = (t: ITeam): TeamAccumulator => ({
   totalLosses: 0,
   totalGoalsFor: 0,
   totalGoalsAgainst: 0,
+  koWins: 0,
+  koDraws: 0,
   points: 0,
   maxStage: 'GROUP_STAGE',
   isChampion: false
@@ -126,6 +132,11 @@ const record = (
     if (gf > ga) acc.wins += 1;
     else if (gf === ga) acc.draws += 1;
     else acc.losses += 1;
+  } else {
+    // Knockout match points: a tie at 90' (ET/pens) is a draw for both sides,
+    // a regulation win banks 3 for the winner.
+    if (wentToEt) acc.koDraws += 1;
+    else if (gf > ga) acc.koWins += 1;
   }
   if (STAGE_RANK[stage] > STAGE_RANK[acc.maxStage]) acc.maxStage = stage;
 };
@@ -417,6 +428,7 @@ async function main() {
   for (const a of accs.values()) {
     const qualifications = STAGE_RANK[a.maxStage] ?? 0;
     const basePoints = a.wins * 3 + a.draws;
+    const koPoints = a.koWins * 3 + a.koDraws;
     const bonus = QUALIFICATION_BONUS[qualifications] ?? 0;
     const eliminated = !aliveNow.has(a.api_id);
     await Team.updateOne(
@@ -437,7 +449,7 @@ async function main() {
           totalLosses: a.totalLosses,
           totalGoalsFor: a.totalGoalsFor,
           totalGoalsAgainst: a.totalGoalsAgainst,
-          points: basePoints + bonus,
+          points: basePoints + koPoints + bonus,
           qualifications,
           eliminated
         }

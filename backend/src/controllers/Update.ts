@@ -103,6 +103,12 @@ interface TeamAggregate {
   goalsFor: number;
   goalsAgainst: number;
   goalDifference: number;
+  // Knockout match points: a win decided in regulation scores like a 3-point
+  // win, a tie at 90' (settled in extra time or on penalties) scores like a
+  // 1-point draw for BOTH sides. These are kept separate from the group-stage
+  // wins/draws/losses columns, which mirror the standings table.
+  koWins: number;
+  koDraws: number;
   qualifications: number;
   eliminated: boolean;
   isChampion: boolean;
@@ -209,14 +215,53 @@ export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, Knockou
   return outcomes;
 };
 
+export interface KnockoutMatchPoints {
+  koWins: number; // knockout ties won in regulation (worth 3 each)
+  koDraws: number; // knockout ties level at 90' (worth 1 each, both sides)
+}
+
+// Match points earned in the knockout rounds, mirroring the group-stage scoring:
+// a regulation win is worth 3, while a tie at 90' that is settled in extra time
+// or on penalties is a 1-point draw for BOTH teams (the winner is still rewarded
+// for advancing through the qualification bonus). Penalty/extra-time deciders are
+// detected via score.duration so the visible final score is irrelevant.
+export const computeKnockoutMatchPoints = (
+  matches: FDMatch[]
+): Map<number, KnockoutMatchPoints> => {
+  const points = new Map<number, KnockoutMatchPoints>();
+  const ensure = (id: number) => {
+    if (!points.has(id)) points.set(id, {koWins: 0, koDraws: 0});
+    return points.get(id)!;
+  };
+  for (const m of matches) {
+    if (m.status !== 'FINISHED' && m.status !== 'AWARDED') continue;
+    if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    const homeId = m.homeTeam.id;
+    const awayId = m.awayTeam.id;
+    const tiedAt90 = m.score.duration === 'EXTRA_TIME' || m.score.duration === 'PENALTY_SHOOTOUT';
+    if (tiedAt90) {
+      if (homeId) ensure(homeId).koDraws += 1;
+      if (awayId) ensure(awayId).koDraws += 1;
+      continue;
+    }
+    // Decided in regulation: the winner banks a 3-point win, the loser nothing.
+    if (m.score.winner === 'HOME_TEAM' && homeId) ensure(homeId).koWins += 1;
+    else if (m.score.winner === 'AWAY_TEAM' && awayId) ensure(awayId).koWins += 1;
+  }
+  return points;
+};
+
 const computePoints = (agg: TeamAggregate): number => {
-  // base = group-stage match points (W*3 + D). bonus covers every advancement
-  // tier including the +10 for winning the final (QUALIFICATION_BONUS[6]=33
-  // already folds that in via buildQualifications returning rank+1 for the
-  // champion). Do NOT add an extra WINNER_BONUS — that would double-count.
+  // base = group-stage match points (W*3 + D). ko = knockout match points
+  // (regulation win = 3, tie at 90' = 1 for both sides). bonus covers every
+  // advancement tier including the +10 for winning the final
+  // (QUALIFICATION_BONUS[6]=33 already folds that in via buildQualifications
+  // returning rank+1 for the champion). Do NOT add an extra WINNER_BONUS — that
+  // would double-count.
   const base = agg.wins * 3 + agg.draws;
+  const ko = agg.koWins * 3 + agg.koDraws;
   const bonus = QUALIFICATION_BONUS[agg.qualifications] ?? 0;
-  return base + bonus;
+  return base + ko + bonus;
 };
 
 const computeGroupStatsFromMatches = (
@@ -270,6 +315,7 @@ export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[])
   // match results (knockout), never from not-yet-drawn next-round fixtures.
   const groupOutcomes = computeGroupOutcomes(standings);
   const knockoutOutcomes = computeKnockoutOutcomes(matches);
+  const knockoutMatchPoints = computeKnockoutMatchPoints(matches);
 
   const aggregates: TeamAggregate[] = [];
   for (const group of standings) {
@@ -298,6 +344,7 @@ export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[])
       const goalsFor = s?.goalsFor ?? row.goalsFor;
       const goalsAgainst = s?.goalsAgainst ?? row.goalsAgainst;
       const goalDifference = s?.goalDifference ?? row.goalDifference;
+      const ko = knockoutMatchPoints.get(id);
       // Prefer the result-based knockout verdict; fall back to upcoming-match
       // presence only while a drawn tie is unplayed, then the standings-based
       // group outcome before any knockout.
@@ -321,6 +368,8 @@ export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[])
         goalsFor,
         goalsAgainst,
         goalDifference,
+        koWins: ko?.koWins ?? 0,
+        koDraws: ko?.koDraws ?? 0,
         qualifications,
         eliminated,
         isChampion
