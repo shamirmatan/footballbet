@@ -25,7 +25,7 @@ export class TeamsTableComponent implements OnInit {
     });
     this.summary = {
       total: this.sortedTeams.length,
-      played: this.sortedTeams.reduce((sum, t) => sum + (t.games ?? 0), 0),
+      played: this.sortedTeams.reduce((sum, t) => sum + (t.totalGames ?? 0), 0),
       advanced: this.sortedTeams.reduce((sum, t) => sum + (t.qualifications ?? 0), 0),
       eliminated: this.sortedTeams.filter((t) => t.eliminated).length
     };
