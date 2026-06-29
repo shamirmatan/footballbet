@@ -13,16 +13,6 @@
 
     <mat-tab>
       <ng-template mat-tab-label>
-        <mat-icon class="tab-icon">grid_view</mat-icon>
-        <span class="tab-label">Groups</span>
-      </ng-template>
-      <div class="tab-panel">
-        <app-groups></app-groups>
-      </div>
-    </mat-tab>
-
-    <mat-tab>
-      <ng-template mat-tab-label>
         <mat-icon class="tab-icon">account_tree</mat-icon>
         <span class="tab-label">Playoffs</span>
       </ng-template>
@@ -31,10 +21,22 @@
       </div>
     </mat-tab>
 
+    <!-- Group stage is over: keep it reachable but visually de-emphasised. -->
     <mat-tab>
       <ng-template mat-tab-label>
-        <mat-icon class="tab-icon">how_to_reg</mat-icon>
-        <span class="tab-label">Draft</span>
+        <mat-icon class="tab-icon tab-icon--muted">grid_view</mat-icon>
+        <span class="tab-label tab-label--muted">Groups</span>
+      </ng-template>
+      <div class="tab-panel">
+        <app-groups></app-groups>
+      </div>
+    </mat-tab>
+
+    <!-- Draft is locked once the tournament starts: reachable but faded. -->
+    <mat-tab>
+      <ng-template mat-tab-label>
+        <mat-icon class="tab-icon tab-icon--muted">how_to_reg</mat-icon>
+        <span class="tab-label tab-label--muted">Draft</span>
       </ng-template>
       <div class="tab-panel">
         <app-team-picker [viewerOnly]="true"></app-team-picker>

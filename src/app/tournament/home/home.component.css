@@ -21,6 +21,22 @@
   text-overflow: ellipsis;
 }
 
+/* The group stage and draft are finished/locked once the knockouts begin.
+   Fade them so it's clear they're no longer the action, while keeping them
+   fully clickable (and brightening back up on hover or when selected). */
+.tab-icon--muted,
+.tab-label--muted {
+  opacity: 0.45;
+  transition: opacity 0.15s ease;
+}
+
+::ng-deep .home-tabs .mat-mdc-tab:hover .tab-icon--muted,
+::ng-deep .home-tabs .mat-mdc-tab:hover .tab-label--muted,
+::ng-deep .home-tabs .mat-mdc-tab.mdc-tab--active .tab-icon--muted,
+::ng-deep .home-tabs .mat-mdc-tab.mdc-tab--active .tab-label--muted {
+  opacity: 1;
+}
+
 .tab-panel {
   padding: 16px 0 0;
 }
