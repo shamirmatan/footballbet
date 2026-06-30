@@ -176,6 +176,15 @@
   font-variant-numeric: tabular-nums;
   min-width: 14px;
   text-align: right;
+  white-space: nowrap;
+}
+
+/* Penalty-shootout tally shown next to the 90'/120' score, e.g. 1 (4). */
+.card__pens {
+  margin-left: 2px;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--color-ink-500);
 }
 
 .card__status {

@@ -41,6 +41,8 @@ export interface BracketMatch {
   utcDate: string | null
   scoreHome: number | null
   scoreAway: number | null
+  penaltyHome: number | null
+  penaltyAway: number | null
   winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null
 }
 
@@ -207,6 +209,8 @@ interface AppliedFixture {
   away: ResolvedSide;
   scoreHome: number | null;
   scoreAway: number | null;
+  penaltyHome: number | null;
+  penaltyAway: number | null;
   winner: BracketMatch['winner'];
   status: string;
   utcDate: string;
@@ -230,15 +234,14 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     fx.winner === 'HOME_TEAM' ? 'home' : fx.winner === 'AWAY_TEAM' ? 'away' : null;
   // Resilience for finished knockout ties the feed left without a decisive
   // winner (a penalty/extra-time win recorded as a DRAW): break the tie on the
-  // stored scoreline so the bracket still carries the winner forward.
-  if (
-    !fxWinSide &&
-    fx.status === 'FINISHED' &&
-    fx.scoreHome != null &&
-    fx.scoreAway != null &&
-    fx.scoreHome !== fx.scoreAway
-  ) {
-    fxWinSide = fx.scoreHome > fx.scoreAway ? 'home' : 'away';
+  // shootout, then on the stored scoreline, so the bracket still carries the
+  // winner forward.
+  if (!fxWinSide && fx.status === 'FINISHED') {
+    if (fx.penaltyHome != null && fx.penaltyAway != null && fx.penaltyHome !== fx.penaltyAway) {
+      fxWinSide = fx.penaltyHome > fx.penaltyAway ? 'home' : 'away';
+    } else if (fx.scoreHome != null && fx.scoreAway != null && fx.scoreHome !== fx.scoreAway) {
+      fxWinSide = fx.scoreHome > fx.scoreAway ? 'home' : 'away';
+    }
   }
   let winner: BracketMatch['winner'] = null;
   if (fxWinSide) {
@@ -253,6 +256,8 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     away: away.resolved ? away : sideFromFixtureTeam(awayFxTeam),
     scoreHome: homeIsFxHome ? fx.scoreHome : fx.scoreAway,
     scoreAway: homeIsFxHome ? fx.scoreAway : fx.scoreHome,
+    penaltyHome: homeIsFxHome ? fx.penaltyHome : fx.penaltyAway,
+    penaltyAway: homeIsFxHome ? fx.penaltyAway : fx.penaltyHome,
     winner,
     status: fx.status,
     utcDate: fx.utcDate
@@ -281,6 +286,8 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
     let utcDate: string | null = null;
     let scoreHome: number | null = null;
     let scoreAway: number | null = null;
+    let penaltyHome: number | null = null;
+    let penaltyAway: number | null = null;
     let winner: BracketMatch['winner'] = null;
 
     const fx = findFixture(home, away, fixturesByStage.get(slot.stage) ?? []);
@@ -292,6 +299,8 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       utcDate = applied.utcDate;
       scoreHome = applied.scoreHome;
       scoreAway = applied.scoreAway;
+      penaltyHome = applied.penaltyHome;
+      penaltyAway = applied.penaltyAway;
       winner = applied.winner;
     }
 
@@ -304,6 +313,8 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       utcDate,
       scoreHome,
       scoreAway,
+      penaltyHome,
+      penaltyAway,
       winner
     });
 

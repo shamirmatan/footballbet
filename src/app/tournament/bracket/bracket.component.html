@@ -56,7 +56,9 @@
                 <span class="card__name">{{ c.match.home.name || 'TBD' }}</span>
                 <span class="card__owner" *ngIf="c.match.home.resolved && ownerOf(c.match.home.name)">{{ ownerOf(c.match.home.name) }}</span>
               </span>
-              <span class="card__score" *ngIf="c.match.scoreHome !== null">{{ c.match.scoreHome }}</span>
+              <span class="card__score" *ngIf="c.match.scoreHome !== null">
+                {{ c.match.scoreHome }}<span class="card__pens" *ngIf="c.match.penaltyHome !== null" title="Penalty shootout">({{ c.match.penaltyHome }})</span>
+              </span>
             </div>
             <div
               class="card__side"
@@ -70,7 +72,9 @@
                 <span class="card__name">{{ c.match.away.name || 'TBD' }}</span>
                 <span class="card__owner" *ngIf="c.match.away.resolved && ownerOf(c.match.away.name)">{{ ownerOf(c.match.away.name) }}</span>
               </span>
-              <span class="card__score" *ngIf="c.match.scoreAway !== null">{{ c.match.scoreAway }}</span>
+              <span class="card__score" *ngIf="c.match.scoreAway !== null">
+                {{ c.match.scoreAway }}<span class="card__pens" *ngIf="c.match.penaltyAway !== null" title="Penalty shootout">({{ c.match.penaltyAway }})</span>
+              </span>
             </div>
             <span
               class="card__status"

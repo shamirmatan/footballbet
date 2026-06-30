@@ -75,6 +75,8 @@ const fixture = (opts: Partial<IMatch>): IMatch =>
     awayTeam: opts.awayTeam ?? {api_id: null, name: null, logo: null},
     scoreHome: opts.scoreHome ?? null,
     scoreAway: opts.scoreAway ?? null,
+    penaltyHome: opts.penaltyHome ?? null,
+    penaltyAway: opts.penaltyAway ?? null,
     winner: opts.winner ?? null,
     duration: null
   } as IMatch);
@@ -121,6 +123,30 @@ describe('buildBracket fixture join', () => {
     expect(m79.away).toMatchObject({name: 'Poland'});
     expect(m79.scoreAway).toBe(0);
     expect(m79.winner).toBe('HOME_TEAM'); // WinnerA won
+  });
+
+  it('passes through penalty scores and advances the shootout winner', () => {
+    const teams = completeGroup('A');
+    const winnerA = teams.find((t) => t.position === 1)!;
+    // Level at 90' (1-1), Poland win the shootout 4-2. The feed left winner as
+    // a DRAW; the resolver/bracket must still advance Poland.
+    const fx = fixture({
+      stage: 'LAST_32',
+      status: 'FINISHED',
+      winner: 'DRAW',
+      scoreHome: 1,
+      scoreAway: 1,
+      penaltyHome: 2,
+      penaltyAway: 4,
+      homeTeam: {api_id: winnerA.api_id, name: winnerA.name, logo: ''},
+      awayTeam: {api_id: 777, name: 'Poland', logo: 'pl.png'}
+    });
+    const m79 = find(buildBracket(teams, [fx]), 79);
+    expect(m79.scoreHome).toBe(1);
+    expect(m79.scoreAway).toBe(1);
+    expect(m79.penaltyHome).toBe(2);
+    expect(m79.penaltyAway).toBe(4);
+    expect(m79.winner).toBe('AWAY_TEAM'); // Poland advance on penalties
   });
 
   it('propagates a finished R32 winner into its Round-of-16 slot', () => {

@@ -30,6 +30,52 @@ const pickScore = () => {
   return 4;
 };
 
+interface KoResult {
+  gf: number;
+  ga: number;
+  duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT';
+  penHome: number | null;
+  penAway: number | null;
+  wentToEt: boolean;
+  homeWon: boolean;
+}
+
+// Simulate one finished knockout tie. A level 90' result is decided in extra
+// time (one side scores, no shootout) or, half the time, on penalties — in
+// which case the 90'/120' score stays level and a separate shootout tally
+// decides the winner, mirroring how football-data reports fullTime vs penalties.
+const simulateKoMatch = (): KoResult => {
+  let gf = pickScore();
+  let ga = pickScore();
+  let duration: KoResult['duration'] = 'REGULAR';
+  let penHome: number | null = null;
+  let penAway: number | null = null;
+  let wentToEt = false;
+
+  if (gf === ga) {
+    wentToEt = true;
+    if (rand() < 0.5) {
+      duration = 'EXTRA_TIME';
+      if (rand() < 0.5) gf += 1;
+      else ga += 1;
+    } else {
+      duration = 'PENALTY_SHOOTOUT';
+      const winnerPens = 3 + randInt(3); // 3..5
+      const loserPens = Math.max(0, winnerPens - 1 - randInt(2)); // 1–2 fewer
+      if (rand() < 0.5) {
+        penHome = winnerPens;
+        penAway = loserPens;
+      } else {
+        penHome = loserPens;
+        penAway = winnerPens;
+      }
+    }
+  }
+
+  const homeWon = duration === 'PENALTY_SHOOTOUT' ? penHome! > penAway! : gf > ga;
+  return {gf, ga, duration, penHome, penAway, wentToEt, homeWon};
+};
+
 interface TeamAccumulator {
   api_id: number;
   name: string;
@@ -243,37 +289,22 @@ async function main() {
       if (!slot) break;
 
       if (i < finished) {
-        // Fully played with a winner. ~25% go to extra time / penalties
-        // (i.e., tied at 90 min — counts as a draw in W/D/L but the winner
-        // still advances).
-        let gf = pickScore();
-        let ga = pickScore();
-        const wentToEt = gf === ga || rand() < 0.25;
-        let duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT' = 'REGULAR';
-        if (wentToEt) {
-          duration = rand() < 0.5 ? 'EXTRA_TIME' : 'PENALTY_SHOOTOUT';
-          if (gf === ga) {
-            // Nudge one side so the visible final score shows a winner,
-            // but the pre-ET tie is implied by duration !== REGULAR.
-            if (rand() < 0.5) gf += 1;
-            else ga += 1;
-          }
-        } else if (gf === ga) {
-          // Shouldn't happen (wentToEt would be true), but belt & braces.
-          if (rand() < 0.5) gf += 1;
-          else ga += 1;
-        }
-        record(home, gf, ga, stage, wentToEt);
-        record(away, ga, gf, stage, wentToEt);
-        winners.push(gf > ga ? home : away);
+        // Fully played with a winner. A level 90' tie is settled in extra time
+        // or on penalties (counts as a draw in W/D/L, but the winner advances).
+        const r = simulateKoMatch();
+        record(home, r.gf, r.ga, stage, r.wentToEt);
+        record(away, r.ga, r.gf, stage, r.wentToEt);
+        winners.push(r.homeWon ? home : away);
         matchUpdates.push({
           id: slot.api_id,
           patch: {
             status: 'FINISHED',
-            scoreHome: gf,
-            scoreAway: ga,
-            winner: gf > ga ? 'HOME_TEAM' : 'AWAY_TEAM',
-            duration,
+            scoreHome: r.gf,
+            scoreAway: r.ga,
+            penaltyHome: r.penHome,
+            penaltyAway: r.penAway,
+            winner: r.homeWon ? 'HOME_TEAM' : 'AWAY_TEAM',
+            duration: r.duration,
             homeTeam: {api_id: home.api_id, name: home.name, logo: home.logo},
             awayTeam: {api_id: away.api_id, name: away.name, logo: away.logo}
           }
@@ -287,6 +318,8 @@ async function main() {
             status: 'TIMED',
             scoreHome: null,
             scoreAway: null,
+            penaltyHome: null,
+            penaltyAway: null,
             winner: null,
             homeTeam: {api_id: home.api_id, name: home.name, logo: home.logo},
             awayTeam: {api_id: away.api_id, name: away.name, logo: away.logo}
@@ -319,31 +352,20 @@ async function main() {
 
     if (i < 2) {
       // FINISHED — same ET/pens logic as playRound
-      let gf = pickScore();
-      let ga = pickScore();
-      const wentToEt = gf === ga || rand() < 0.25;
-      let duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT' = 'REGULAR';
-      if (wentToEt) {
-        duration = rand() < 0.5 ? 'EXTRA_TIME' : 'PENALTY_SHOOTOUT';
-        if (gf === ga) {
-          if (rand() < 0.5) gf += 1;
-          else ga += 1;
-        }
-      } else if (gf === ga) {
-        if (rand() < 0.5) gf += 1;
-        else ga += 1;
-      }
-      record(home, gf, ga, 'QUARTER_FINALS', wentToEt);
-      record(away, ga, gf, 'QUARTER_FINALS', wentToEt);
-      sfTeams.push(gf > ga ? home : away);
+      const r = simulateKoMatch();
+      record(home, r.gf, r.ga, 'QUARTER_FINALS', r.wentToEt);
+      record(away, r.ga, r.gf, 'QUARTER_FINALS', r.wentToEt);
+      sfTeams.push(r.homeWon ? home : away);
       matchUpdates.push({
         id: slot.api_id,
         patch: {
           status: 'FINISHED',
-          scoreHome: gf,
-          scoreAway: ga,
-          winner: gf > ga ? 'HOME_TEAM' : 'AWAY_TEAM',
-          duration,
+          scoreHome: r.gf,
+          scoreAway: r.ga,
+          penaltyHome: r.penHome,
+          penaltyAway: r.penAway,
+          winner: r.homeWon ? 'HOME_TEAM' : 'AWAY_TEAM',
+          duration: r.duration,
           homeTeam: {api_id: home.api_id, name: home.name, logo: home.logo},
           awayTeam: {api_id: away.api_id, name: away.name, logo: away.logo}
         }
@@ -359,6 +381,8 @@ async function main() {
           status: 'IN_PLAY',
           scoreHome: gf,
           scoreAway: ga,
+          penaltyHome: null,
+          penaltyAway: null,
           winner: null,
           homeTeam: {api_id: home.api_id, name: home.name, logo: home.logo},
           awayTeam: {api_id: away.api_id, name: away.name, logo: away.logo}
@@ -375,6 +399,8 @@ async function main() {
           status: 'TIMED',
           scoreHome: null,
           scoreAway: null,
+          penaltyHome: null,
+          penaltyAway: null,
           winner: null,
           homeTeam: {api_id: home.api_id, name: home.name, logo: home.logo},
           awayTeam: {api_id: away.api_id, name: away.name, logo: away.logo}
@@ -396,6 +422,8 @@ async function main() {
           status: 'TIMED',
           scoreHome: null,
           scoreAway: null,
+          penaltyHome: null,
+          penaltyAway: null,
           winner: null,
           homeTeam: {api_id: null, name: null, logo: null},
           awayTeam: {api_id: null, name: null, logo: null}

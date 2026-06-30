@@ -539,6 +539,8 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
           },
           scoreHome: m.score.fullTime.home,
           scoreAway: m.score.fullTime.away,
+          penaltyHome: m.score.penalties?.home ?? null,
+          penaltyAway: m.score.penalties?.away ?? null,
           // For a finished knockout tie settled on penalties/extra time the feed
           // may report winner as DRAW/null; store the resolved advancing side so
           // the bracket carries the winner forward instead of stalling on TBD.

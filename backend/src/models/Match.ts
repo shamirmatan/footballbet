@@ -17,6 +17,10 @@ export interface IMatch {
   awayTeam: IMatchTeam;
   scoreHome: number | null;
   scoreAway: number | null;
+  // Penalty-shootout tally, when a knockout tie was decided on penalties. The
+  // scoreHome/scoreAway columns stay as the 90'/120' result so both can be shown.
+  penaltyHome: number | null;
+  penaltyAway: number | null;
   winner: string | null;
   duration: string | null;
 }
@@ -45,6 +49,8 @@ const MatchSchema: Schema = new Schema(
     awayTeam: {type: MatchTeamSchema, required: true},
     scoreHome: {type: Number, default: null},
     scoreAway: {type: Number, default: null},
+    penaltyHome: {type: Number, default: null},
+    penaltyAway: {type: Number, default: null},
     winner: {type: String, default: null},
     duration: {type: String, default: null}
   },
