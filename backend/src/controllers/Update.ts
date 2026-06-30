@@ -178,6 +178,27 @@ export interface KnockoutOutcome {
   eliminated: boolean; // knocked out of the tournament
 }
 
+// Resolve which side actually advanced from a knockout result. The feed's
+// `winner` is authoritative when it names a side, but for a tie settled on
+// penalties it often reports the 90'/120' result as a DRAW (or leaves winner
+// null) and only records the shootout in `score.penalties`. Fall back to the
+// shootout score, then to the on-pitch scoreline, so a penalty/extra-time
+// winner is still credited the advancement (and its qualification bonus).
+export const resolveKnockoutWinner = (
+  score: FDMatch['score']
+): 'HOME_TEAM' | 'AWAY_TEAM' | null => {
+  if (score.winner === 'HOME_TEAM' || score.winner === 'AWAY_TEAM') return score.winner;
+  const pens = score.penalties;
+  if (pens && pens.home != null && pens.away != null && pens.home !== pens.away) {
+    return pens.home > pens.away ? 'HOME_TEAM' : 'AWAY_TEAM';
+  }
+  const ft = score.fullTime;
+  if (ft && ft.home != null && ft.away != null && ft.home !== ft.away) {
+    return ft.home > ft.away ? 'HOME_TEAM' : 'AWAY_TEAM';
+  }
+  return null;
+};
+
 // Derive knockout standing purely from finished match RESULTS, never from
 // whether the next round's fixtures carry team ids yet (they stay TBD until the
 // bracket is drawn). In single elimination one loss is out; the only twists are
@@ -190,7 +211,7 @@ export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, Knockou
   for (const m of matches) {
     if (m.status !== 'FINISHED') continue;
     if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
-    const winner = m.score.winner; // reflects the pens winner for shootouts
+    const winner = resolveKnockoutWinner(m.score); // honours pens/ET shootouts
     if (winner !== 'HOME_TEAM' && winner !== 'AWAY_TEAM') continue;
     for (const side of ['HOME_TEAM', 'AWAY_TEAM'] as const) {
       const team = side === 'HOME_TEAM' ? m.homeTeam : m.awayTeam;
@@ -245,8 +266,9 @@ export const computeKnockoutMatchPoints = (
       continue;
     }
     // Decided in regulation: the winner banks a 3-point win, the loser nothing.
-    if (m.score.winner === 'HOME_TEAM' && homeId) ensure(homeId).koWins += 1;
-    else if (m.score.winner === 'AWAY_TEAM' && awayId) ensure(awayId).koWins += 1;
+    const winner = resolveKnockoutWinner(m.score);
+    if (winner === 'HOME_TEAM' && homeId) ensure(homeId).koWins += 1;
+    else if (winner === 'AWAY_TEAM' && awayId) ensure(awayId).koWins += 1;
   }
   return points;
 };
@@ -517,7 +539,13 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
           },
           scoreHome: m.score.fullTime.home,
           scoreAway: m.score.fullTime.away,
-          winner: m.score.winner,
+          // For a finished knockout tie settled on penalties/extra time the feed
+          // may report winner as DRAW/null; store the resolved advancing side so
+          // the bracket carries the winner forward instead of stalling on TBD.
+          winner:
+            m.status === 'FINISHED' && KNOCKOUT_STAGES.includes(m.stage)
+              ? resolveKnockoutWinner(m.score) ?? m.score.winner
+              : m.score.winner,
           duration: m.score.duration
         }
       },

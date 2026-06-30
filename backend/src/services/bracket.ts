@@ -226,7 +226,20 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
   const homeFxTeam = homeIsFxHome ? fx.homeTeam : fx.awayTeam;
   const awayFxTeam = homeIsFxHome ? fx.awayTeam : fx.homeTeam;
 
-  const fxWinSide = fx.winner === 'HOME_TEAM' ? 'home' : fx.winner === 'AWAY_TEAM' ? 'away' : null;
+  let fxWinSide: 'home' | 'away' | null =
+    fx.winner === 'HOME_TEAM' ? 'home' : fx.winner === 'AWAY_TEAM' ? 'away' : null;
+  // Resilience for finished knockout ties the feed left without a decisive
+  // winner (a penalty/extra-time win recorded as a DRAW): break the tie on the
+  // stored scoreline so the bracket still carries the winner forward.
+  if (
+    !fxWinSide &&
+    fx.status === 'FINISHED' &&
+    fx.scoreHome != null &&
+    fx.scoreAway != null &&
+    fx.scoreHome !== fx.scoreAway
+  ) {
+    fxWinSide = fx.scoreHome > fx.scoreAway ? 'home' : 'away';
+  }
   let winner: BracketMatch['winner'] = null;
   if (fxWinSide) {
     const ourHomeFxSide = homeIsFxHome ? 'home' : 'away';

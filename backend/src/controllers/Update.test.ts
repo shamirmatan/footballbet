@@ -3,6 +3,7 @@ import {
   computeGroupOutcomes,
   computeKnockoutMatchPoints,
   computeKnockoutOutcomes,
+  resolveKnockoutWinner,
 } from './Update';
 import {FDMatch, FDStandingGroup, FDStandingRow, Stage} from '../services/footballData';
 
@@ -101,9 +102,13 @@ const koMatch = (
   stage: Stage,
   homeId: number,
   awayId: number,
-  winner: 'HOME_TEAM' | 'AWAY_TEAM' | null,
+  winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null,
   status: FDMatch['status'] = 'FINISHED',
-  duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT' = 'REGULAR'
+  duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT' = 'REGULAR',
+  opts: {
+    fullTime?: {home: number; away: number};
+    penalties?: {home: number; away: number};
+  } = {}
 ): FDMatch => ({
   id: koId++,
   stage,
@@ -116,8 +121,10 @@ const koMatch = (
   score: {
     winner,
     duration,
-    fullTime: {home: winner === 'HOME_TEAM' ? 1 : 0, away: winner === 'AWAY_TEAM' ? 1 : 0},
+    fullTime:
+      opts.fullTime ?? {home: winner === 'HOME_TEAM' ? 1 : 0, away: winner === 'AWAY_TEAM' ? 1 : 0},
     halfTime: {home: 0, away: 0},
+    ...(opts.penalties ? {penalties: opts.penalties} : {}),
   },
 });
 
@@ -167,6 +174,54 @@ describe('computeKnockoutOutcomes', () => {
       koMatch('QUARTER_FINALS', 1, 7, 'AWAY_TEAM'), // team 1 loses the QF
     ]);
     expect(out.get(1)).toEqual({reachedRank: 3, eliminated: true}); // reached QF, out there
+  });
+});
+
+describe('resolveKnockoutWinner', () => {
+  const score = (
+    winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null,
+    fullTime: {home: number; away: number},
+    penalties?: {home: number; away: number}
+  ): FDMatch['score'] => ({
+    winner,
+    duration: penalties ? 'PENALTY_SHOOTOUT' : 'REGULAR',
+    fullTime,
+    halfTime: {home: 0, away: 0},
+    ...(penalties ? {penalties} : {}),
+  });
+
+  it('uses the explicit decisive winner when present', () => {
+    expect(resolveKnockoutWinner(score('AWAY_TEAM', {home: 1, away: 0}))).toBe('AWAY_TEAM');
+  });
+
+  it('breaks a draw on the penalty shootout score', () => {
+    // Tie at 90/120 reported as a DRAW; the shootout decides who advances.
+    expect(resolveKnockoutWinner(score('DRAW', {home: 4, away: 4}, {home: 3, away: 5}))).toBe(
+      'AWAY_TEAM'
+    );
+  });
+
+  it('falls back to the scoreline when winner is missing', () => {
+    expect(resolveKnockoutWinner(score(null, {home: 5, away: 4}))).toBe('HOME_TEAM');
+  });
+
+  it('returns null when nothing distinguishes the sides', () => {
+    expect(resolveKnockoutWinner(score('DRAW', {home: 1, away: 1}))).toBeNull();
+  });
+});
+
+describe('computeKnockoutOutcomes (penalty/extra-time winners)', () => {
+  it('credits a penalty-shootout winner reported as a DRAW with the advancement', () => {
+    // The exact bug: the feed leaves winner=DRAW and only records the shootout,
+    // so the winner must still be marked as having reached the next round.
+    const out = computeKnockoutOutcomes([
+      koMatch('LAST_32', 1, 2, 'DRAW', 'FINISHED', 'PENALTY_SHOOTOUT', {
+        fullTime: {home: 4, away: 4},
+        penalties: {home: 3, away: 5},
+      }),
+    ]);
+    expect(out.get(2)).toEqual({reachedRank: 2, eliminated: false}); // pens winner -> R16
+    expect(out.get(1)).toEqual({reachedRank: 1, eliminated: true}); // pens loser out
   });
 });
 
