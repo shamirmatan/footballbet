@@ -201,15 +201,21 @@ export const resolveKnockoutWinner = (
 
 type ScoreLine = {home: number | null; away: number | null};
 
-// The on-pitch score at the end of play, EXCLUDING any shootout. football-data
-// reports the shootout result in `fullTime` for PENALTY_SHOOTOUT matches, with
-// the 90'/120' breakdown in `regularTime`/`extraTime` — so prefer those when a
-// tie went to penalties (or extra time) and only fall back to fullTime.
+const addScores = (a?: ScoreLine | null, b?: ScoreLine | null): ScoreLine | null => {
+  if (!a && !b) return null;
+  return {home: (a?.home ?? 0) + (b?.home ?? 0), away: (a?.away ?? 0) + (b?.away ?? 0)};
+};
+
+// The on-pitch score at the end of play, EXCLUDING any shootout. For a
+// PENALTY_SHOOTOUT match football-data reports the shootout in `fullTime`, while
+// `regularTime` and `extraTime` hold the goals scored in each period (extraTime
+// is the 30' of ET only, NOT cumulative) — so the 120' score is their sum. For
+// REGULAR/EXTRA_TIME matches `fullTime` is already the on-pitch result.
 export const onPitchScore = (score: FDMatch['score']): ScoreLine => {
-  if (score.duration === 'PENALTY_SHOOTOUT' || score.duration === 'EXTRA_TIME') {
-    return score.extraTime ?? score.regularTime ?? score.fullTime;
+  if (score.duration === 'PENALTY_SHOOTOUT') {
+    return addScores(score.regularTime, score.extraTime) ?? score.fullTime;
   }
-  return score.regularTime ?? score.fullTime;
+  return score.fullTime;
 };
 
 // The penalty-shootout tally, or null when the tie was not settled on penalties.

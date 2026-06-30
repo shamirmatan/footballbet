@@ -231,21 +231,33 @@ describe('onPitchScore / penaltyScore', () => {
     expect(penaltyScore(s)).toBeNull();
   });
 
-  it('shows the 120-minute score (not the shootout) for a penalty result', () => {
-    // football-data folds the shootout into fullTime; the 120' score is in
-    // extraTime, the shootout in penalties.
+  it('sums regulation + extra time for a penalty result (no goals in ET)', () => {
+    // 1-1 after 90', 0-0 in extra time, shootout 4-2. fullTime carries the
+    // shootout; the 120' score is regularTime + extraTime = 1-1.
     const s = score('PENALTY_SHOOTOUT', {home: 4, away: 2}, {
       regularTime: {home: 1, away: 1},
-      extraTime: {home: 1, away: 1},
+      extraTime: {home: 0, away: 0},
       penalties: {home: 4, away: 2},
     });
-    expect(onPitchScore(s)).toEqual({home: 1, away: 1}); // 120' draw, NOT 4-2
+    expect(onPitchScore(s)).toEqual({home: 1, away: 1}); // NOT 4-2 and NOT 0-0
     expect(penaltyScore(s)).toEqual({home: 4, away: 2});
+  });
+
+  it('sums goals scored during extra time into the 120-minute score', () => {
+    // 1-1 after 90', then one goal each in ET (2-2), shootout 5-4.
+    const s = score('PENALTY_SHOOTOUT', {home: 5, away: 4}, {
+      regularTime: {home: 1, away: 1},
+      extraTime: {home: 1, away: 1},
+      penalties: {home: 5, away: 4},
+    });
+    expect(onPitchScore(s)).toEqual({home: 2, away: 2});
+    expect(penaltyScore(s)).toEqual({home: 5, away: 4});
   });
 
   it('treats fullTime as the shootout when penalties are not broken out', () => {
     const s = score('PENALTY_SHOOTOUT', {home: 5, away: 4}, {
-      extraTime: {home: 1, away: 1},
+      regularTime: {home: 1, away: 1},
+      extraTime: {home: 0, away: 0},
     });
     expect(onPitchScore(s)).toEqual({home: 1, away: 1});
     expect(penaltyScore(s)).toEqual({home: 5, away: 4});
