@@ -345,7 +345,6 @@
   flex-shrink: 0;
 }
 
-/* "PEN ✓" pill on the side that won a penalty shootout (dark hero background). */
 .match-row__pen-badge {
   flex-shrink: 0;
   display: inline-flex;
@@ -356,10 +355,6 @@
   color: #fff;
   font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.3px;
-  line-height: 1.5;
-  text-transform: uppercase;
-  white-space: nowrap;
 }
 
 
