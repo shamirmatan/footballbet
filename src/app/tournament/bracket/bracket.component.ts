@@ -216,6 +216,9 @@ export class BracketComponent implements OnInit, OnDestroy {
   // ---- side / status helpers ----
 
   loserSide(m: BracketMatch): 'home' | 'away' | null {
+    // Only a finished match has a loser; never strike through a side while the
+    // match is still live (or otherwise unfinished).
+    if (m.status !== 'FINISHED' && m.status !== 'AWARDED') return null;
     if (m.winner === 'HOME_TEAM') return 'away';
     if (m.winner === 'AWAY_TEAM') return 'home';
     return null;
