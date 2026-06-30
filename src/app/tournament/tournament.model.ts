@@ -60,6 +60,8 @@ export interface Match {
   awayTeam: MatchTeam;
   scoreHome: number | null;
   scoreAway: number | null;
+  penaltyHome: number | null;
+  penaltyAway: number | null;
   winner: string | null;
 }
 

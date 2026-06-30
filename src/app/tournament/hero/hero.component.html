@@ -69,6 +69,7 @@
                 <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
                 <span class="match-row__owner" *ngIf="ownerOf(m.homeTeam.name)">{{ ownerOf(m.homeTeam.name) }}</span>
               </span>
+              <span class="match-row__pen-badge" *ngIf="pensWinnerSide(m) === 'home'" title="Won on penalties">PEN&nbsp;✓</span>
               <span class="match-row__score" *ngIf="hasScore(m)">{{ m.scoreHome ?? 0 }}</span>
             </div>
             <div class="match-row__team">
@@ -77,6 +78,7 @@
                 <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
                 <span class="match-row__owner" *ngIf="ownerOf(m.awayTeam.name)">{{ ownerOf(m.awayTeam.name) }}</span>
               </span>
+              <span class="match-row__pen-badge" *ngIf="pensWinnerSide(m) === 'away'" title="Won on penalties">PEN&nbsp;✓</span>
               <span class="match-row__score" *ngIf="hasScore(m)">{{ m.scoreAway ?? 0 }}</span>
             </div>
           </div>

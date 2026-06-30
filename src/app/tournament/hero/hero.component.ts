@@ -148,6 +148,14 @@ export class HeroComponent implements OnInit, OnDestroy {
     return m.status === 'IN_PLAY' || m.status === 'PAUSED';
   }
 
+  /** The side that won a penalty shootout, or null if the tie was not on pens. */
+  pensWinnerSide(m: Match): 'home' | 'away' | null {
+    if (m.penaltyHome == null || m.penaltyAway == null) return null;
+    if (m.winner === 'HOME_TEAM') return 'home';
+    if (m.winner === 'AWAY_TEAM') return 'away';
+    return null;
+  }
+
   hasScore(m: Match): boolean {
     return (
       m.status === 'FINISHED' ||
