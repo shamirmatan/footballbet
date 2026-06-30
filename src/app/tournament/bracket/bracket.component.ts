@@ -221,6 +221,14 @@ export class BracketComponent implements OnInit, OnDestroy {
     return null;
   }
 
+  /** The side that won a penalty shootout, or null if the tie was not on pens. */
+  pensWinnerSide(m: BracketMatch): 'home' | 'away' | null {
+    if (m.penaltyHome == null || m.penaltyAway == null) return null;
+    if (m.winner === 'HOME_TEAM') return 'home';
+    if (m.winner === 'AWAY_TEAM') return 'away';
+    return null;
+  }
+
   isLive(m: BracketMatch): boolean {
     return m.status === 'IN_PLAY' || m.status === 'PAUSED';
   }

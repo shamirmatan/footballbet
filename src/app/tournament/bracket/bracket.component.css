@@ -179,12 +179,21 @@
   white-space: nowrap;
 }
 
-/* Penalty-shootout tally shown next to the 90'/120' score, e.g. 1 (4). */
-.card__pens {
-  margin-left: 2px;
+/* "PEN ✓" pill marking the side that won a penalty shootout; the 90'/120'
+   score stays in the score column. */
+.card__pen-badge {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 999px;
+  background: var(--color-border);
+  color: var(--color-ink-700, var(--color-ink-900));
+  font-size: 9px;
   font-weight: 700;
-  font-size: 11px;
-  color: var(--color-ink-500);
+  letter-spacing: 0.3px;
+  line-height: 1.4;
+  text-transform: uppercase;
 }
 
 .card__status {
