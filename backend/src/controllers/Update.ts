@@ -188,7 +188,7 @@ export const resolveKnockoutWinner = (
   score: FDMatch['score']
 ): 'HOME_TEAM' | 'AWAY_TEAM' | null => {
   if (score.winner === 'HOME_TEAM' || score.winner === 'AWAY_TEAM') return score.winner;
-  const pens = score.penalties;
+  const pens = penaltyScore(score);
   if (pens && pens.home != null && pens.away != null && pens.home !== pens.away) {
     return pens.home > pens.away ? 'HOME_TEAM' : 'AWAY_TEAM';
   }
@@ -196,6 +196,29 @@ export const resolveKnockoutWinner = (
   if (ft && ft.home != null && ft.away != null && ft.home !== ft.away) {
     return ft.home > ft.away ? 'HOME_TEAM' : 'AWAY_TEAM';
   }
+  return null;
+};
+
+type ScoreLine = {home: number | null; away: number | null};
+
+// The on-pitch score at the end of play, EXCLUDING any shootout. football-data
+// reports the shootout result in `fullTime` for PENALTY_SHOOTOUT matches, with
+// the 90'/120' breakdown in `regularTime`/`extraTime` — so prefer those when a
+// tie went to penalties (or extra time) and only fall back to fullTime.
+export const onPitchScore = (score: FDMatch['score']): ScoreLine => {
+  if (score.duration === 'PENALTY_SHOOTOUT' || score.duration === 'EXTRA_TIME') {
+    return score.extraTime ?? score.regularTime ?? score.fullTime;
+  }
+  return score.regularTime ?? score.fullTime;
+};
+
+// The penalty-shootout tally, or null when the tie was not settled on penalties.
+// Prefer the explicit `penalties` field; if it is absent on a shootout the feed
+// has folded the shootout into `fullTime`, so use that.
+export const penaltyScore = (score: FDMatch['score']): ScoreLine | null => {
+  const pens = score.penalties;
+  if (pens && (pens.home != null || pens.away != null)) return pens;
+  if (score.duration === 'PENALTY_SHOOTOUT') return score.fullTime;
   return null;
 };
 
@@ -537,10 +560,10 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
             name: m.awayTeam.name ?? null,
             logo: m.awayTeam.crest ?? null
           },
-          scoreHome: m.score.fullTime.home,
-          scoreAway: m.score.fullTime.away,
-          penaltyHome: m.score.penalties?.home ?? null,
-          penaltyAway: m.score.penalties?.away ?? null,
+          scoreHome: onPitchScore(m.score).home,
+          scoreAway: onPitchScore(m.score).away,
+          penaltyHome: penaltyScore(m.score)?.home ?? null,
+          penaltyAway: penaltyScore(m.score)?.away ?? null,
           // For a finished knockout tie settled on penalties/extra time the feed
           // may report winner as DRAW/null; store the resolved advancing side so
           // the bracket carries the winner forward instead of stalling on TBD.

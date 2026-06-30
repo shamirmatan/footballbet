@@ -3,6 +3,8 @@ import {
   computeGroupOutcomes,
   computeKnockoutMatchPoints,
   computeKnockoutOutcomes,
+  onPitchScore,
+  penaltyScore,
   resolveKnockoutWinner,
 } from './Update';
 import {FDMatch, FDStandingGroup, FDStandingRow, Stage} from '../services/footballData';
@@ -207,6 +209,55 @@ describe('resolveKnockoutWinner', () => {
 
   it('returns null when nothing distinguishes the sides', () => {
     expect(resolveKnockoutWinner(score('DRAW', {home: 1, away: 1}))).toBeNull();
+  });
+});
+
+describe('onPitchScore / penaltyScore', () => {
+  const score = (
+    duration: 'REGULAR' | 'EXTRA_TIME' | 'PENALTY_SHOOTOUT',
+    fullTime: {home: number; away: number},
+    extra?: Partial<FDMatch['score']>
+  ): FDMatch['score'] => ({
+    winner: null,
+    duration,
+    fullTime,
+    halfTime: {home: 0, away: 0},
+    ...extra,
+  });
+
+  it('shows the regulation score for a normal knockout result', () => {
+    const s = score('REGULAR', {home: 2, away: 1});
+    expect(onPitchScore(s)).toEqual({home: 2, away: 1});
+    expect(penaltyScore(s)).toBeNull();
+  });
+
+  it('shows the 120-minute score (not the shootout) for a penalty result', () => {
+    // football-data folds the shootout into fullTime; the 120' score is in
+    // extraTime, the shootout in penalties.
+    const s = score('PENALTY_SHOOTOUT', {home: 4, away: 2}, {
+      regularTime: {home: 1, away: 1},
+      extraTime: {home: 1, away: 1},
+      penalties: {home: 4, away: 2},
+    });
+    expect(onPitchScore(s)).toEqual({home: 1, away: 1}); // 120' draw, NOT 4-2
+    expect(penaltyScore(s)).toEqual({home: 4, away: 2});
+  });
+
+  it('treats fullTime as the shootout when penalties are not broken out', () => {
+    const s = score('PENALTY_SHOOTOUT', {home: 5, away: 4}, {
+      extraTime: {home: 1, away: 1},
+    });
+    expect(onPitchScore(s)).toEqual({home: 1, away: 1});
+    expect(penaltyScore(s)).toEqual({home: 5, away: 4});
+  });
+
+  it('uses the extra-time score for an extra-time winner', () => {
+    const s = score('EXTRA_TIME', {home: 2, away: 1}, {
+      regularTime: {home: 1, away: 1},
+      extraTime: {home: 2, away: 1},
+    });
+    expect(onPitchScore(s)).toEqual({home: 2, away: 1});
+    expect(penaltyScore(s)).toBeNull();
   });
 });
 
