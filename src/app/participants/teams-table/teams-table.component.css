@@ -77,6 +77,13 @@
   object-fit: cover;
 }
 
+.team-row__name-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
 .team-row__name {
   font-weight: 600;
   font-size: 14px;
@@ -84,6 +91,14 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.team-row__elim {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--color-ink-500);
+  white-space: nowrap;
 }
 
 .team-row__group {
@@ -173,7 +188,7 @@
     padding: 10px;
   }
   .team-row__flag { grid-area: flag; align-self: start; }
-  .team-row__name { grid-area: name; }
+  .team-row__name-col { grid-area: name; }
   .team-row__points { grid-area: points; }
   .team-row__stats { grid-area: stats; flex-wrap: wrap; }
   .team-row__group { display: none; }

@@ -18,7 +18,10 @@
       <span class="team-row__flag">
         <img [src]="team.logo" [alt]="team.name" loading="lazy" />
       </span>
-      <span class="team-row__name">{{ team.name }}</span>
+      <span class="team-row__name-col">
+        <span class="team-row__name">{{ team.name }}</span>
+        <span class="team-row__elim" *ngIf="team.eliminated && eliminationRound(team)">Out · {{ eliminationRound(team) }}</span>
+      </span>
       <span class="team-row__group" *ngIf="team.group">Group {{ team.group }}</span>
       <span class="team-row__stats">
         <span class="stat" title="Wins (knockout draws via ET/pens not counted as wins)"><span class="stat__k">W</span><span class="stat__v">{{ team.totalWins }}</span></span>
