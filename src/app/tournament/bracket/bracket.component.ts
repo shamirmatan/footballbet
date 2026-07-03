@@ -3,6 +3,7 @@ import {Subscription} from 'rxjs';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Bracket, BracketMatch} from '../tournament.model';
+import {visiblePoll} from '../../shared/visible-poll';
 
 /**
  * Presentation-only bracket adjacency (FIFA match numbers).
@@ -85,6 +86,7 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   private participants: Participant[] = [];
   private participantsSub?: Subscription;
+  private pollSub?: Subscription;
 
   constructor(
     private tournamentService: TournamentService,
@@ -92,14 +94,17 @@ export class BracketComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    this.tournamentService.getBracket().subscribe({
-      next: (bracket) => {
-        this.build(bracket);
-        this.loading = false;
-      },
-      error: () => {
-        this.loading = false;
-      }
+    // Load immediately, then refresh every 60s while the tab is visible.
+    this.pollSub = visiblePoll(60_000).subscribe(() => {
+      this.tournamentService.getBracket().subscribe({
+        next: (bracket) => {
+          this.build(bracket);
+          this.loading = false;
+        },
+        error: () => {
+          this.loading = false;
+        }
+      });
     });
     this.participantsSub = this.participantsService
       .getParticipantsUpdateListener()
@@ -109,6 +114,7 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.participantsSub?.unsubscribe();
+    this.pollSub?.unsubscribe();
   }
 
   ownerOf(teamName: string | null): string {

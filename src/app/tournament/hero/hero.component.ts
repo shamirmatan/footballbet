@@ -3,6 +3,7 @@ import {Subscription} from 'rxjs';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Match, MatchSummary, TournamentState} from '../tournament.model';
+import {visiblePoll} from '../../shared/visible-poll';
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: 'Group Stage',
@@ -40,6 +41,7 @@ export class HeroComponent implements OnInit, OnDestroy {
   allMatches: Match[] = [];
   private participants: Participant[] = [];
   private participantsSub?: Subscription;
+  private pollSub?: Subscription;
   private timer?: number;
 
   constructor(
@@ -48,6 +50,23 @@ export class HeroComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
+    // Refresh state + matches immediately, then every 60s while the tab is
+    // visible (paused when hidden).
+    this.pollSub = visiblePoll(60_000).subscribe(() => this.refresh());
+    this.participantsSub = this.participantsService
+      .getParticipantsUpdateListener()
+      .subscribe((p) => (this.participants = p));
+    this.participantsService.getParticipants();
+    this.timer = window.setInterval(() => this.recomputeCountdown(), 60_000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.timer) window.clearInterval(this.timer);
+    this.participantsSub?.unsubscribe();
+    this.pollSub?.unsubscribe();
+  }
+
+  private refresh(): void {
     this.tournamentService.getState().subscribe({
       next: (state) => {
         this.state = state;
@@ -61,16 +80,6 @@ export class HeroComponent implements OnInit, OnDestroy {
     this.tournamentService.getMatches().subscribe((matches) => {
       this.allMatches = matches;
     });
-    this.participantsSub = this.participantsService
-      .getParticipantsUpdateListener()
-      .subscribe((p) => (this.participants = p));
-    this.participantsService.getParticipants();
-    this.timer = window.setInterval(() => this.recomputeCountdown(), 60_000);
-  }
-
-  ngOnDestroy(): void {
-    if (this.timer) window.clearInterval(this.timer);
-    this.participantsSub?.unsubscribe();
   }
 
   get stageLabel(): string {
