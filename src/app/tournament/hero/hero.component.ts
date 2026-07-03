@@ -3,7 +3,7 @@ import {Subscription} from 'rxjs';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Match, MatchSummary, TournamentState} from '../tournament.model';
-import {visiblePoll} from '../../shared/visible-poll';
+import {AdaptivePoller} from '../../shared/adaptive-poller';
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: 'Group Stage',
@@ -41,7 +41,7 @@ export class HeroComponent implements OnInit, OnDestroy {
   allMatches: Match[] = [];
   private participants: Participant[] = [];
   private participantsSub?: Subscription;
-  private pollSub?: Subscription;
+  private poller = new AdaptivePoller(() => this.refresh());
   private timer?: number;
 
   constructor(
@@ -50,9 +50,9 @@ export class HeroComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Refresh state + matches immediately, then every 60s while the tab is
-    // visible (paused when hidden).
-    this.pollSub = visiblePoll(60_000).subscribe(() => this.refresh());
+    // Refresh state + matches immediately, then adaptively (fast while a match
+    // is live, slow otherwise; paused when the tab is hidden).
+    this.poller.start();
     this.participantsSub = this.participantsService
       .getParticipantsUpdateListener()
       .subscribe((p) => (this.participants = p));
@@ -63,7 +63,7 @@ export class HeroComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     if (this.timer) window.clearInterval(this.timer);
     this.participantsSub?.unsubscribe();
-    this.pollSub?.unsubscribe();
+    this.poller.destroy();
   }
 
   private refresh(): void {
@@ -77,9 +77,21 @@ export class HeroComponent implements OnInit, OnDestroy {
         this.loading = false;
       }
     });
-    this.tournamentService.getMatches().subscribe((matches) => {
-      this.allMatches = matches;
+    // Matches drive the live/idle cadence; reschedule once they settle.
+    this.tournamentService.getMatches().subscribe({
+      next: (matches) => {
+        this.allMatches = matches;
+        this.poller.reschedule(this.hasLiveMatch());
+      },
+      error: () => this.poller.reschedule(false)
     });
+  }
+
+  private hasLiveMatch(): boolean {
+    return (
+      !!this.state?.liveMatch ||
+      this.allMatches.some((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED')
+    );
   }
 
   get stageLabel(): string {

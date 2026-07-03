@@ -3,7 +3,7 @@ import {Subscription} from 'rxjs';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Bracket, BracketMatch} from '../tournament.model';
-import {visiblePoll} from '../../shared/visible-poll';
+import {AdaptivePoller} from '../../shared/adaptive-poller';
 
 /**
  * Presentation-only bracket adjacency (FIFA match numbers).
@@ -86,7 +86,7 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   private participants: Participant[] = [];
   private participantsSub?: Subscription;
-  private pollSub?: Subscription;
+  private poller = new AdaptivePoller(() => this.refresh());
 
   constructor(
     private tournamentService: TournamentService,
@@ -94,18 +94,9 @@ export class BracketComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit(): void {
-    // Load immediately, then refresh every 60s while the tab is visible.
-    this.pollSub = visiblePoll(60_000).subscribe(() => {
-      this.tournamentService.getBracket().subscribe({
-        next: (bracket) => {
-          this.build(bracket);
-          this.loading = false;
-        },
-        error: () => {
-          this.loading = false;
-        }
-      });
-    });
+    // Load immediately, then refresh adaptively (fast while a match is live,
+    // slow otherwise; paused when the tab is hidden).
+    this.poller.start();
     this.participantsSub = this.participantsService
       .getParticipantsUpdateListener()
       .subscribe((p) => (this.participants = p));
@@ -114,7 +105,24 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.participantsSub?.unsubscribe();
-    this.pollSub?.unsubscribe();
+    this.poller.destroy();
+  }
+
+  private refresh(): void {
+    this.tournamentService.getBracket().subscribe({
+      next: (bracket) => {
+        this.build(bracket);
+        this.loading = false;
+        const live = (bracket.stages ?? []).some((s) =>
+          s.matches.some((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED')
+        );
+        this.poller.reschedule(live);
+      },
+      error: () => {
+        this.loading = false;
+        this.poller.reschedule(false);
+      }
+    });
   }
 
   ownerOf(teamName: string | null): string {
