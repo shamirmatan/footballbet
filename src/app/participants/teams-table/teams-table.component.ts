@@ -19,9 +19,13 @@ export class TeamsTableComponent implements OnInit {
 
   ngOnInit() {
     this.sortedTeams = [...(this.teams ?? [])].sort((a, b) => {
-      const groupDiff = (a.group ?? '').localeCompare(b.group ?? '');
-      if (groupDiff !== 0) return groupDiff;
-      return b.points - a.points;
+      // Still-alive teams on top, then by rank (points, then goal difference).
+      if (!!a.eliminated !== !!b.eliminated) return a.eliminated ? 1 : -1;
+      if (b.points !== a.points) return b.points - a.points;
+      const gdA = (a.totalGoalsFor ?? 0) - (a.totalGoalsAgainst ?? 0);
+      const gdB = (b.totalGoalsFor ?? 0) - (b.totalGoalsAgainst ?? 0);
+      if (gdB !== gdA) return gdB - gdA;
+      return (a.name ?? '').localeCompare(b.name ?? '');
     });
     this.summary = {
       total: this.sortedTeams.length,
