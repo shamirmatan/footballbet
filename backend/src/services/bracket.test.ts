@@ -71,7 +71,6 @@ const fixture = (opts: Partial<IMatch>): IMatch =>
     matchday: null,
     status: opts.status ?? 'FINISHED',
     utcDate: opts.utcDate ?? '2026-06-29T19:00:00Z',
-    minute: opts.minute ?? null,
     homeTeam: opts.homeTeam ?? {api_id: null, name: null, logo: null},
     awayTeam: opts.awayTeam ?? {api_id: null, name: null, logo: null},
     scoreHome: opts.scoreHome ?? null,

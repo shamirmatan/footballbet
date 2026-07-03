@@ -4,7 +4,6 @@ import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Bracket, BracketMatch} from '../tournament.model';
 import {AdaptivePoller} from '../../shared/adaptive-poller';
-import {liveLabel} from '../../shared/live-minute';
 
 /**
  * Presentation-only bracket adjacency (FIFA match numbers).
@@ -252,7 +251,7 @@ export class BracketComponent implements OnInit, OnDestroy {
   }
 
   statusLabel(m: BracketMatch): string {
-    if (this.isLive(m)) return liveLabel(m.status, m.utcDate, m.minute);
+    if (this.isLive(m)) return 'LIVE';
     if (m.status === 'FINISHED') return 'FT';
     if (m.utcDate) return this.formatKickoff(m.utcDate);
     return '';

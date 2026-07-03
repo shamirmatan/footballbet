@@ -2,7 +2,6 @@ import {Component, HostListener, Input, OnDestroy, OnInit} from "@angular/core";
 import {Subscription} from "rxjs";
 import {TournamentService} from "../../tournament/tournament.service";
 import {Match} from "../../tournament/tournament.model";
-import {liveLabel} from "../../shared/live-minute";
 
 interface TeamSummary {
   total: number;
@@ -145,7 +144,7 @@ export class TeamsTableComponent implements OnInit, OnDestroy {
     switch (m.status) {
       case 'FINISHED':
       case 'AWARDED': return 'FT';
-      case 'IN_PLAY': return liveLabel(m.status, m.utcDate, m.minute);
+      case 'IN_PLAY': return 'LIVE';
       case 'PAUSED': return 'HT';
       case 'SUSPENDED': return 'SUSP';
       case 'POSTPONED': return 'PPD';

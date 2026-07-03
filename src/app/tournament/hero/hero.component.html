@@ -113,7 +113,7 @@
 
       <!-- Fallback on rest days: single next-up card -->
       <div class="match-card" *ngIf="!showDailySchedule && featuredMatch" [class.match-card--live]="isLive">
-        <span class="match-card__label" *ngIf="isLive">{{ featuredLiveLabel }}</span>
+        <span class="match-card__label" *ngIf="isLive">LIVE</span>
         <span class="match-card__label" *ngIf="!isLive">Next kickoff</span>
         <div class="match-card__teams">
           <span class="match-card__side">

@@ -13,7 +13,6 @@ export interface IMatch {
   matchday: number | null;
   status: string;
   utcDate: string;
-  minute: number | null;
   homeTeam: IMatchTeam;
   awayTeam: IMatchTeam;
   scoreHome: number | null;
@@ -46,7 +45,6 @@ const MatchSchema: Schema = new Schema(
     matchday: {type: Number, default: null},
     status: {type: String, required: true},
     utcDate: {type: String, required: true, index: true},
-    minute: {type: Number, default: null},
     homeTeam: {type: MatchTeamSchema, required: true},
     awayTeam: {type: MatchTeamSchema, required: true},
     scoreHome: {type: Number, default: null},

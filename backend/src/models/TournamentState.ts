@@ -6,7 +6,6 @@ export interface IMatchSummary {
   homeLogo?: string;
   awayLogo?: string;
   utcDate: string;
-  minute?: number | null;
   group?: string | null;
   stage: string;
   status: string;
@@ -34,7 +33,6 @@ const MatchSummarySchema: Schema = new Schema(
     homeLogo: String,
     awayLogo: String,
     utcDate: {type: String, required: true},
-    minute: {type: Number, default: null},
     group: {type: String, default: null},
     stage: {type: String, required: true},
     status: {type: String, required: true},

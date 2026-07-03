@@ -479,7 +479,6 @@ const toMatchSummary = (m: FDMatch): IMatchSummary => ({
   homeLogo: m.homeTeam.crest,
   awayLogo: m.awayTeam.crest,
   utcDate: m.utcDate,
-  minute: m.status === 'IN_PLAY' ? m.minute ?? null : null,
   group: m.group,
   stage: m.stage,
   status: m.status,
@@ -557,7 +556,6 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
           matchday: m.matchday ?? null,
           status: m.status,
           utcDate: m.utcDate,
-          minute: m.status === 'IN_PLAY' ? m.minute ?? null : null,
           homeTeam: {
             api_id: m.homeTeam.id ?? null,
             name: m.homeTeam.name ?? null,
