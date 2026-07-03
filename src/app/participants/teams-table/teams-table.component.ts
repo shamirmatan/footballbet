@@ -74,12 +74,16 @@ export class TeamsTableComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.matchesSub?.unsubscribe();
+    document.body.classList.remove('team-modal-open');
   }
 
   // ---- team match modal ----
 
   openTeam(team: Team) {
     this.selectedTeam = team;
+    // Hide the tab-header pagination arrows (they live in another component and
+    // otherwise show over the overlay) while the popup is open.
+    document.body.classList.add('team-modal-open');
     // Fetch matches lazily the first time a team is opened.
     if (this.allMatches.length === 0 && !this.matchesLoading) {
       this.matchesLoading = true;
@@ -95,6 +99,7 @@ export class TeamsTableComponent implements OnInit, OnDestroy {
 
   closeTeam() {
     this.selectedTeam = null;
+    document.body.classList.remove('team-modal-open');
   }
 
   @HostListener('document:keydown.escape')

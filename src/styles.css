@@ -116,3 +116,9 @@ body {
 .mat-mdc-form-field.mat-focused .mat-mdc-select-arrow {
   color: var(--color-red-600);
 }
+
+/* While a team-schedule popup is open, hide the tab-header pagination arrows so
+   they don't render over the overlay. */
+body.team-modal-open .mat-mdc-tab-header-pagination {
+  display: none !important;
+}
