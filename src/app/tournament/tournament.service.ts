@@ -1,12 +1,14 @@
 import {Injectable} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
 import {Observable} from 'rxjs';
-import {map} from 'rxjs/operators';
+import {map, shareReplay} from 'rxjs/operators';
 import {environment} from '../../environments/environment';
 import {Bracket, GroupStanding, Match, TournamentState} from './tournament.model';
 
 @Injectable({providedIn: 'root'})
 export class TournamentService {
+  private matches$?: Observable<Match[]>;
+
   constructor(private http: HttpClient) {}
 
   getState(): Observable<TournamentState | null> {
@@ -20,9 +22,17 @@ export class TournamentService {
   }
 
   getMatches(): Observable<Match[]> {
-    return this.http
-      .get<{matches: Match[]}>(`${environment.apiUrl}/matches`)
-      .pipe(map((r) => r.matches));
+    // Cache the response so the many standings panels that prefetch it share a
+    // single request, and a team-schedule popup opens instantly with no wait.
+    if (!this.matches$) {
+      this.matches$ = this.http
+        .get<{matches: Match[]}>(`${environment.apiUrl}/matches`)
+        .pipe(
+          map((r) => r.matches),
+          shareReplay({bufferSize: 1, refCount: false})
+        );
+    }
+    return this.matches$;
   }
 
   getBracket(): Observable<Bracket> {

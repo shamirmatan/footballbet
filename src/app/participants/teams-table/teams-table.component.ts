@@ -70,6 +70,16 @@ export class TeamsTableComponent implements OnInit, OnDestroy {
       advanced: this.sortedTeams.reduce((sum, t) => sum + (t.qualifications ?? 0), 0),
       eliminated: this.sortedTeams.filter((t) => t.eliminated).length
     };
+    // Prefetch matches up front (the service caches, so all panels share one
+    // request) so opening a team's schedule is instant with no loading wait.
+    this.matchesLoading = true;
+    this.matchesSub = this.tournamentService.getMatches().subscribe({
+      next: (matches) => {
+        this.allMatches = matches;
+        this.matchesLoading = false;
+      },
+      error: () => (this.matchesLoading = false)
+    });
   }
 
   ngOnDestroy() {
@@ -84,17 +94,6 @@ export class TeamsTableComponent implements OnInit, OnDestroy {
     // Hide the tab-header pagination arrows (they live in another component and
     // otherwise show over the overlay) while the popup is open.
     document.body.classList.add('team-modal-open');
-    // Fetch matches lazily the first time a team is opened.
-    if (this.allMatches.length === 0 && !this.matchesLoading) {
-      this.matchesLoading = true;
-      this.matchesSub = this.tournamentService.getMatches().subscribe({
-        next: (matches) => {
-          this.allMatches = matches;
-          this.matchesLoading = false;
-        },
-        error: () => (this.matchesLoading = false)
-      });
-    }
   }
 
   closeTeam() {
