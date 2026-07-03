@@ -39,6 +39,7 @@ export interface BracketMatch {
   away: ResolvedSide
   status: string
   utcDate: string | null
+  minute: number | null
   scoreHome: number | null
   scoreAway: number | null
   penaltyHome: number | null
@@ -214,6 +215,7 @@ interface AppliedFixture {
   winner: BracketMatch['winner'];
   status: string;
   utcDate: string;
+  minute: number | null;
 }
 
 // Re-orient the fixture onto our structural home/away, anchored on whichever
@@ -260,7 +262,8 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     penaltyAway: homeIsFxHome ? fx.penaltyAway : fx.penaltyHome,
     winner,
     status: fx.status,
-    utcDate: fx.utcDate
+    utcDate: fx.utcDate,
+    minute: fx.minute
   };
 };
 
@@ -284,6 +287,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
 
     let status = 'SCHEDULED';
     let utcDate: string | null = null;
+    let minute: number | null = null;
     let scoreHome: number | null = null;
     let scoreAway: number | null = null;
     let penaltyHome: number | null = null;
@@ -297,6 +301,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       away = applied.away;
       status = applied.status;
       utcDate = applied.utcDate;
+      minute = applied.minute;
       scoreHome = applied.scoreHome;
       scoreAway = applied.scoreAway;
       penaltyHome = applied.penaltyHome;
@@ -311,6 +316,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       away,
       status,
       utcDate,
+      minute,
       scoreHome,
       scoreAway,
       penaltyHome,

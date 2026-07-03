@@ -4,6 +4,7 @@ export interface MatchSummary {
   homeLogo?: string;
   awayLogo?: string;
   utcDate: string;
+  minute?: number | null;
   group?: string | null;
   stage: string;
   status: string;
@@ -56,6 +57,7 @@ export interface Match {
   matchday: number | null;
   status: string;
   utcDate: string;
+  minute: number | null;
   homeTeam: MatchTeam;
   awayTeam: MatchTeam;
   scoreHome: number | null;
@@ -79,6 +81,7 @@ export interface BracketMatch {
   away: BracketSide;
   status: string;
   utcDate: string | null;
+  minute: number | null;
   scoreHome: number | null;
   scoreAway: number | null;
   penaltyHome: number | null;

@@ -36,6 +36,8 @@ export interface FDMatch {
   matchday: number | null;
   status: MatchStatus;
   utcDate: string;
+  minute?: number | null;
+  injuryTime?: number | null;
   homeTeam: Partial<FDTeam> & { id: number | null; name: string | null };
   awayTeam: Partial<FDTeam> & { id: number | null; name: string | null };
   score: {

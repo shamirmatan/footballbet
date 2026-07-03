@@ -4,6 +4,7 @@ import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Match, MatchSummary, TournamentState} from '../tournament.model';
 import {AdaptivePoller} from '../../shared/adaptive-poller';
+import {liveLabel} from '../../shared/live-minute';
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: 'Group Stage',
@@ -112,6 +113,11 @@ export class HeroComponent implements OnInit, OnDestroy {
     return !!this.state?.liveMatch;
   }
 
+  get featuredLiveLabel(): string {
+    const m = this.featuredMatch;
+    return m ? liveLabel(m.status, m.utcDate, m.minute) : 'LIVE';
+  }
+
   get isPreTournament(): boolean {
     return this.state?.stage === 'NOT_STARTED';
   }
@@ -151,7 +157,7 @@ export class HeroComponent implements OnInit, OnDestroy {
     switch (m.status) {
       case 'FINISHED':
       case 'AWARDED': return 'FT';
-      case 'IN_PLAY': return 'LIVE';
+      case 'IN_PLAY': return liveLabel(m.status, m.utcDate, m.minute);
       case 'PAUSED': return 'HT';
       case 'SUSPENDED': return 'SUSP';
       case 'POSTPONED': return 'PPD';
