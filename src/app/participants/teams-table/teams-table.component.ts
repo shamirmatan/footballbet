@@ -94,6 +94,13 @@ export class TeamsTableComponent implements OnInit, OnDestroy {
     // Hide the tab-header pagination arrows (they live in another component and
     // otherwise show over the overlay) while the popup is open.
     document.body.classList.add('team-modal-open');
+    // Pull the latest matches: instant if the cache is still warm, otherwise a
+    // fresh fetch that updates the list in place (no loading flash).
+    this.matchesSub?.unsubscribe();
+    this.matchesSub = this.tournamentService.getMatches().subscribe({
+      next: (matches) => (this.allMatches = matches),
+      error: () => {}
+    });
   }
 
   closeTeam() {
