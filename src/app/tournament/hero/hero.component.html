@@ -49,7 +49,7 @@
           <ng-container *ngIf="!isLive && showDailySchedule">Today</ng-container>
           <ng-container *ngIf="!isLive && !showDailySchedule">Next up</ng-container>
         </div>
-        <p class="hero__subtitle" *ngIf="state.currentMatchday">Matchday {{ state.currentMatchday }}</p>
+        <p class="hero__subtitle" *ngIf="state.currentMatchday && state.stage === 'GROUP_STAGE'">Matchday {{ state.currentMatchday }}</p>
       </div>
 
       <!-- Daily schedule: today + tomorrow morning -->
