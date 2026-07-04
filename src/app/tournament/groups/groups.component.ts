@@ -2,6 +2,7 @@ import {Component, OnInit} from '@angular/core';
 import {forkJoin} from 'rxjs';
 import {TournamentService} from '../tournament.service';
 import {GroupStanding, GroupTeam, Match} from '../tournament.model';
+import {TeamScheduleService} from '../../shared/team-schedule.service';
 
 interface GroupMatchday {
   matchday: number;
@@ -24,7 +25,14 @@ export class GroupsComponent implements OnInit {
   loading = true;
   activeTab: Record<string, GroupTab> = {};
 
-  constructor(private tournamentService: TournamentService) {}
+  constructor(
+    private tournamentService: TournamentService,
+    private teamSchedule: TeamScheduleService
+  ) {}
+
+  openTeam(name: string | null | undefined, logo?: string | null): void {
+    this.teamSchedule.open(name, logo);
+  }
 
   ngOnInit(): void {
     forkJoin({

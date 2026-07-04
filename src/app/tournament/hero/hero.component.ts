@@ -4,6 +4,7 @@ import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Match, MatchSummary, TournamentState} from '../tournament.model';
 import {AdaptivePoller} from '../../shared/adaptive-poller';
+import {TeamScheduleService} from '../../shared/team-schedule.service';
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: 'Group Stage',
@@ -46,8 +47,13 @@ export class HeroComponent implements OnInit, OnDestroy {
 
   constructor(
     private tournamentService: TournamentService,
-    private participantsService: ParticipantsService
+    private participantsService: ParticipantsService,
+    private teamSchedule: TeamScheduleService
   ) {}
+
+  openTeam(name: string | null | undefined, logo?: string | null): void {
+    this.teamSchedule.open(name, logo);
+  }
 
   ngOnInit(): void {
     // Refresh state + matches immediately, then adaptively (fast while a match

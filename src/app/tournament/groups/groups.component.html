@@ -49,7 +49,7 @@
           <span class="td-pos">{{ i + 1 }}</span>
           <span class="td-team">
             <span class="td-team__flag"><img *ngIf="team.logo" [src]="team.logo" [alt]="team.name"></span>
-            <span class="td-team__name">{{ team.name }}</span>
+            <span class="td-team__name team-clickable" (click)="openTeam(team.name, team.logo)">{{ team.name }}</span>
           </span>
           <span class="td-num">{{ team.wins }}</span>
           <span class="td-num">{{ team.draws }}</span>
@@ -75,14 +75,14 @@
                   <span class="match__flag">
                     <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name || 'TBD'">
                   </span>
-                  <span class="match__name">{{ m.homeTeam.name || 'TBD' }}</span>
+                  <span class="match__name" [class.team-clickable]="m.homeTeam.name" (click)="openTeam(m.homeTeam.name, m.homeTeam.logo)">{{ m.homeTeam.name || 'TBD' }}</span>
                   <span class="match__score" *ngIf="m.scoreHome !== null">{{ m.scoreHome }}</span>
                 </div>
                 <div class="match__side" [class.match__side--loser]="loser(m) === 'away'">
                   <span class="match__flag">
                     <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name || 'TBD'">
                   </span>
-                  <span class="match__name">{{ m.awayTeam.name || 'TBD' }}</span>
+                  <span class="match__name" [class.team-clickable]="m.awayTeam.name" (click)="openTeam(m.awayTeam.name, m.awayTeam.logo)">{{ m.awayTeam.name || 'TBD' }}</span>
                   <span class="match__score" *ngIf="m.scoreAway !== null">{{ m.scoreAway }}</span>
                 </div>
               </div>

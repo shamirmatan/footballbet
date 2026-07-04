@@ -53,7 +53,7 @@
                 <img *ngIf="c.match.home.logo" [src]="c.match.home.logo" [alt]="c.match.home.name || 'TBD'" />
               </span>
               <span class="card__name-col">
-                <span class="card__name">{{ c.match.home.name || 'TBD' }}</span>
+                <span class="card__name" [class.team-clickable]="c.match.home.resolved" (click)="c.match.home.resolved && openTeam(c.match.home.name, c.match.home.logo)">{{ c.match.home.name || 'TBD' }}</span>
                 <span class="card__pen-badge" *ngIf="pensWinnerSide(c.match) === 'home'" title="Won on penalties">PEN&nbsp;✓</span>
                 <span class="card__owner" *ngIf="c.match.home.resolved && ownerOf(c.match.home.name)">{{ ownerOf(c.match.home.name) }}</span>
               </span>
@@ -68,7 +68,7 @@
                 <img *ngIf="c.match.away.logo" [src]="c.match.away.logo" [alt]="c.match.away.name || 'TBD'" />
               </span>
               <span class="card__name-col">
-                <span class="card__name">{{ c.match.away.name || 'TBD' }}</span>
+                <span class="card__name" [class.team-clickable]="c.match.away.resolved" (click)="c.match.away.resolved && openTeam(c.match.away.name, c.match.away.logo)">{{ c.match.away.name || 'TBD' }}</span>
                 <span class="card__pen-badge" *ngIf="pensWinnerSide(c.match) === 'away'" title="Won on penalties">PEN&nbsp;✓</span>
                 <span class="card__owner" *ngIf="c.match.away.resolved && ownerOf(c.match.away.name)">{{ ownerOf(c.match.away.name) }}</span>
               </span>

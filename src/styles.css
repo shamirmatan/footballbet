@@ -122,3 +122,12 @@ body {
 body.team-modal-open .mat-mdc-tab-header-pagination {
   display: none !important;
 }
+
+/* A team name that opens its schedule popup on click. */
+.team-clickable {
+  cursor: pointer;
+}
+.team-clickable:hover {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

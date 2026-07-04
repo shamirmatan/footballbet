@@ -4,6 +4,7 @@ import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Bracket, BracketMatch} from '../tournament.model';
 import {AdaptivePoller} from '../../shared/adaptive-poller';
+import {TeamScheduleService} from '../../shared/team-schedule.service';
 
 /**
  * Presentation-only bracket adjacency (FIFA match numbers).
@@ -90,8 +91,13 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   constructor(
     private tournamentService: TournamentService,
-    private participantsService: ParticipantsService
+    private participantsService: ParticipantsService,
+    private teamSchedule: TeamScheduleService
   ) {}
+
+  openTeam(name: string | null | undefined, logo?: string | null): void {
+    this.teamSchedule.open(name, logo);
+  }
 
   ngOnInit(): void {
     // Load immediately, then refresh adaptively (fast while a match is live,

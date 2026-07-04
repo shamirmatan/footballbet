@@ -14,6 +14,7 @@ import {HomeComponent} from "./tournament/home/home.component";
 import {GroupsComponent} from "./tournament/groups/groups.component";
 import {BracketComponent} from "./tournament/bracket/bracket.component";
 import {TeamPickerComponent} from "./team-picker/team-picker.component";
+import {TeamScheduleModalComponent} from "./shared/team-schedule-modal/team-schedule-modal.component";
 
 @NgModule({ declarations: [
         AppComponent,
@@ -24,6 +25,7 @@ import {TeamPickerComponent} from "./team-picker/team-picker.component";
         GroupsComponent,
         BracketComponent,
         TeamPickerComponent,
+        TeamScheduleModalComponent,
     ],
     bootstrap: [AppComponent], imports: [AppRoutingModule,
         BrowserModule,

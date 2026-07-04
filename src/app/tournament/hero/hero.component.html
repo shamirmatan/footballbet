@@ -20,14 +20,14 @@
           <span class="match-card__side">
             <img *ngIf="state.nextMatch.homeLogo" [src]="state.nextMatch.homeLogo" [alt]="state.nextMatch.home" />
             <span class="match-card__side-info">
-              <span class="match-card__name">{{ state.nextMatch.home }}</span>
+              <span class="match-card__name team-clickable" (click)="openTeam(state.nextMatch.home, state.nextMatch.homeLogo)">{{ state.nextMatch.home }}</span>
               <span class="match-card__owner" *ngIf="ownerOf(state.nextMatch.home)">{{ ownerOf(state.nextMatch.home) }}</span>
             </span>
           </span>
           <span class="match-card__vs">vs</span>
           <span class="match-card__side match-card__side--away">
             <span class="match-card__side-info match-card__side-info--away">
-              <span class="match-card__name">{{ state.nextMatch.away }}</span>
+              <span class="match-card__name team-clickable" (click)="openTeam(state.nextMatch.away, state.nextMatch.awayLogo)">{{ state.nextMatch.away }}</span>
               <span class="match-card__owner" *ngIf="ownerOf(state.nextMatch.away)">{{ ownerOf(state.nextMatch.away) }}</span>
             </span>
             <img *ngIf="state.nextMatch.awayLogo" [src]="state.nextMatch.awayLogo" [alt]="state.nextMatch.away" />
@@ -66,7 +66,7 @@
             <div class="match-row__team">
               <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name ?? ''" />
               <span class="match-row__team-text">
-                <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+                <span class="match-row__name" [class.team-clickable]="m.homeTeam.name" (click)="openTeam(m.homeTeam.name, m.homeTeam.logo)">{{ m.homeTeam.name ?? 'TBD' }}</span>
                 <span class="match-row__owner" *ngIf="ownerOf(m.homeTeam.name)">{{ ownerOf(m.homeTeam.name) }}</span>
               </span>
               <span class="match-row__pen-badge" *ngIf="pensWinnerSide(m) === 'home'" title="Won on penalties">PEN&nbsp;✓</span>
@@ -75,7 +75,7 @@
             <div class="match-row__team">
               <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name ?? ''" />
               <span class="match-row__team-text">
-                <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+                <span class="match-row__name" [class.team-clickable]="m.awayTeam.name" (click)="openTeam(m.awayTeam.name, m.awayTeam.logo)">{{ m.awayTeam.name ?? 'TBD' }}</span>
                 <span class="match-row__owner" *ngIf="ownerOf(m.awayTeam.name)">{{ ownerOf(m.awayTeam.name) }}</span>
               </span>
               <span class="match-row__pen-badge" *ngIf="pensWinnerSide(m) === 'away'" title="Won on penalties">PEN&nbsp;✓</span>
@@ -95,14 +95,14 @@
               <div class="match-row__team">
                 <img *ngIf="m.homeTeam.logo" [src]="m.homeTeam.logo" [alt]="m.homeTeam.name ?? ''" />
                 <span class="match-row__team-text">
-                  <span class="match-row__name">{{ m.homeTeam.name ?? 'TBD' }}</span>
+                  <span class="match-row__name" [class.team-clickable]="m.homeTeam.name" (click)="openTeam(m.homeTeam.name, m.homeTeam.logo)">{{ m.homeTeam.name ?? 'TBD' }}</span>
                   <span class="match-row__owner" *ngIf="ownerOf(m.homeTeam.name)">{{ ownerOf(m.homeTeam.name) }}</span>
                 </span>
               </div>
               <div class="match-row__team">
                 <img *ngIf="m.awayTeam.logo" [src]="m.awayTeam.logo" [alt]="m.awayTeam.name ?? ''" />
                 <span class="match-row__team-text">
-                  <span class="match-row__name">{{ m.awayTeam.name ?? 'TBD' }}</span>
+                  <span class="match-row__name" [class.team-clickable]="m.awayTeam.name" (click)="openTeam(m.awayTeam.name, m.awayTeam.logo)">{{ m.awayTeam.name ?? 'TBD' }}</span>
                   <span class="match-row__owner" *ngIf="ownerOf(m.awayTeam.name)">{{ ownerOf(m.awayTeam.name) }}</span>
                 </span>
               </div>
@@ -119,7 +119,7 @@
           <span class="match-card__side">
             <img *ngIf="featuredMatch.homeLogo" [src]="featuredMatch.homeLogo" [alt]="featuredMatch.home" />
             <span class="match-card__side-info">
-              <span class="match-card__name">{{ featuredMatch.home }}</span>
+              <span class="match-card__name team-clickable" (click)="openTeam(featuredMatch.home, featuredMatch.homeLogo)">{{ featuredMatch.home }}</span>
               <span class="match-card__owner" *ngIf="ownerOf(featuredMatch.home)">{{ ownerOf(featuredMatch.home) }}</span>
             </span>
           </span>
@@ -129,7 +129,7 @@
           <span class="match-card__vs" *ngIf="!isLive">vs</span>
           <span class="match-card__side match-card__side--away">
             <span class="match-card__side-info match-card__side-info--away">
-              <span class="match-card__name">{{ featuredMatch.away }}</span>
+              <span class="match-card__name team-clickable" (click)="openTeam(featuredMatch.away, featuredMatch.awayLogo)">{{ featuredMatch.away }}</span>
               <span class="match-card__owner" *ngIf="ownerOf(featuredMatch.away)">{{ ownerOf(featuredMatch.away) }}</span>
             </span>
             <img *ngIf="featuredMatch.awayLogo" [src]="featuredMatch.awayLogo" [alt]="featuredMatch.away" />
