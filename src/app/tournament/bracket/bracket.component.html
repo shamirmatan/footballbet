@@ -7,7 +7,7 @@
 
   <ng-container *ngIf="!loading && hasStages">
     <!-- Horizontally-scrollable bracket tree -->
-    <div class="tree-scroll">
+    <div class="tree-scroll" #treeScroll>
       <div class="tree-headers" [style.width.px]="treeWidth">
         <div
           class="tree-headers__col"

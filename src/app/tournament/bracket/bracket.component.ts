@@ -1,4 +1,4 @@
-import {Component, OnDestroy, OnInit} from '@angular/core';
+import {Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {Subscription} from 'rxjs';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
@@ -85,6 +85,27 @@ export class BracketComponent implements OnInit, OnDestroy {
   readonly cardHeight = CARD_HEIGHT;
   readonly columnWidth = COLUMN_WIDTH;
 
+  private treeScroll?: ElementRef<HTMLElement>;
+  private stageFocused = false;
+  private visibilityObserver?: IntersectionObserver;
+
+  // Set up an observer once the scrollable tree exists, so we can scroll to the
+  // current round the moment the (initially hidden) Playoffs tab becomes visible.
+  @ViewChild('treeScroll') set treeScrollRef(ref: ElementRef<HTMLElement> | undefined) {
+    this.treeScroll = ref;
+    if (!ref || this.visibilityObserver || this.stageFocused) return;
+    if (typeof IntersectionObserver === 'undefined') {
+      this.focusCurrentStage();
+      return;
+    }
+    this.visibilityObserver = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting) && !this.stageFocused) {
+        this.focusCurrentStage();
+      }
+    });
+    this.visibilityObserver.observe(ref.nativeElement);
+  }
+
   private participants: Participant[] = [];
   private participantsSub?: Subscription;
   private poller = new AdaptivePoller(() => this.refresh());
@@ -112,6 +133,7 @@ export class BracketComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.participantsSub?.unsubscribe();
     this.poller.destroy();
+    this.visibilityObserver?.disconnect();
   }
 
   private refresh(): void {
@@ -129,6 +151,33 @@ export class BracketComponent implements OnInit, OnDestroy {
         this.poller.reschedule(false);
       }
     });
+  }
+
+  // The current round is the earliest column that still has an unfinished
+  // match; earlier rounds are done, so start the view there instead of at R32.
+  private currentStageColumnIndex(): number {
+    for (let i = 0; i < this.columns.length; i++) {
+      const active = this.columns[i].cards.some(
+        (c) => c.match.status !== 'FINISHED' && c.match.status !== 'AWARDED'
+      );
+      if (active) return i;
+    }
+    return Math.max(0, this.columns.length - 1); // all done -> the final
+  }
+
+  // Scroll the bracket so the current round is in view. Retries briefly while
+  // the data/layout settle; runs only once.
+  private focusCurrentStage(attempt = 0): void {
+    if (this.stageFocused) return;
+    const el = this.treeScroll?.nativeElement;
+    if (!el || this.columns.length === 0) {
+      if (attempt < 20) setTimeout(() => this.focusCurrentStage(attempt + 1), 100);
+      return;
+    }
+    const idx = this.currentStageColumnIndex();
+    el.scrollLeft = idx <= 0 ? 0 : Math.max(0, idx * (COLUMN_WIDTH + COLUMN_GAP) - 8);
+    this.stageFocused = true;
+    this.visibilityObserver?.disconnect();
   }
 
   ownerOf(teamName: string | null): string {
