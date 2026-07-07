@@ -8,12 +8,14 @@ import {
   SimTeam,
   SimMatch,
   SimParticipant,
+  ActualKoResult,
   computeChancesAndPaths,
   WinningPath,
   rating,
   RATING_BASE,
   RATING_STEP,
 } from '../services/chances';
+import {buildBracket} from '../services/bracket';
 
 const RUNS = Number(process.env.CHANCES_RUNS || 20000);
 
@@ -84,6 +86,7 @@ async function main() {
   const teamDocs = await Team.find().lean();
   const participantDocs = await Participant.find().lean();
   const matchDocs = await Match.find({stage: 'GROUP_STAGE'}).lean();
+  const allMatchDocs = await Match.find().lean();
 
   // ── Data summary ────────────────────────────────────────────────────────────
 
@@ -167,14 +170,44 @@ async function main() {
 
   // ── Run the simulation ───────────────────────────────────────────────────────
 
+  // Continue from the ACTUAL knockout bracket: freeze finished ties, keep the
+  // real drawn pairings, and only roll the fixtures still to come.
+  const bracket = buildBracket(teamDocs as any, allMatchDocs as any);
+  const actualKo = new Map<number, ActualKoResult>();
+  for (const stage of bracket.stages) {
+    for (const bm of stage.matches) {
+      const homeId = bm.home.api_id;
+      const awayId = bm.away.api_id;
+      const winnerId =
+        bm.winner === 'HOME_TEAM' ? homeId : bm.winner === 'AWAY_TEAM' ? awayId : null;
+      actualKo.set(bm.fifaMatch, {
+        finished: bm.status === 'FINISHED' || bm.status === 'AWARDED',
+        homeId,
+        awayId,
+        winnerId,
+        drawAt90: bm.drawAt90
+      });
+    }
+  }
+  const decidedKo = [...actualKo.values()].filter((k) => k.finished).length;
+  const pendingKo = [...actualKo.values()].filter((k) => !k.finished).length;
+  Logging.info(
+    `Chances: knockout state — ${decidedKo} ties already decided (frozen), ` +
+    `${pendingKo} still to be played (rolled along the real bracket).`
+  );
+
   const seed = Date.now();
   Logging.info(
     `Chances: starting Monte Carlo — ${RUNS.toLocaleString()} runs, ` +
-    `seed ${seed}. Each run simulates all unplayed group matches and the full ` +
-    `knockout bracket, then scores every participant and records the winner.`
+    `seed ${seed}. Each run rolls any unplayed group matches, then continues the ` +
+    `real knockout bracket from its current state, scoring every participant.`
   );
 
-  const {chances, paths} = computeChancesAndPaths(teams, participants, matches, {runs: RUNS, seed});
+  const {chances, paths} = computeChancesAndPaths(teams, participants, matches, {
+    runs: RUNS,
+    seed,
+    actualKo
+  });
 
   Logging.info(`Chances: simulation complete. Writing results:`);
 

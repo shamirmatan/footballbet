@@ -156,7 +156,12 @@ describe('simulateKnockout', () => {
   });
 });
 
-import {SimParticipant, computeChances, computeChancesAndPaths} from './chances';
+import {
+  SimParticipant,
+  computeChances,
+  computeChancesAndPaths,
+  ActualKoResult
+} from './chances';
 
 describe('computeChances', () => {
   // Build a full 48-team tournament (12 groups of 4) with tiered strengths.
@@ -229,5 +234,59 @@ describe('computeChances', () => {
     expect(path.margin).toBeGreaterThan(0);
     // Every team's stage is within the valid 0..6 range.
     expect(path.teams.every((t) => t.stageReached >= 0 && t.stageReached <= 6)).toBe(true);
+  });
+
+  it('continues from a fully frozen bracket deterministically', () => {
+    // Finished 0-0 groups (equal group points) so only the frozen knockout
+    // differentiates participants — making the result deterministic.
+    const letters = 'ABCDEFGHIJKL'.split('');
+    const teams: SimTeam[] = [];
+    const matches: SimMatch[] = [];
+    let gid = 1;
+    for (const g of letters) {
+      const ids = [gid, gid + 1, gid + 2, gid + 3];
+      for (const x of ids) teams.push({api_id: x, group: g, tier: (x % 6) + 1, achievedQual: 0, eliminated: false});
+      const drawn = (h: number, a: number): SimMatch => ({group: g, status: 'FINISHED', homeId: h, awayId: a, scoreHome: 0, scoreAway: 0});
+      matches.push(drawn(ids[0], ids[1]), drawn(ids[2], ids[3]), drawn(ids[0], ids[2]), drawn(ids[1], ids[3]), drawn(ids[0], ids[3]), drawn(ids[1], ids[2]));
+      gid += 4;
+    }
+    // Freeze the whole knockout: team 1 wins every round it plays (champion),
+    // with distinct teams filling the rest so nobody is double-counted.
+    const ko = (fifa: number, h: number, a: number, w: number): [number, ActualKoResult] => [
+      fifa,
+      {finished: true, homeId: h, awayId: a, winnerId: w, drawAt90: false}
+    ];
+    const actualKo = new Map<number, ActualKoResult>();
+    let tid = 1;
+    for (let f = 73; f <= 88; f++) {
+      actualKo.set(...ko(f, tid, tid + 1, tid));
+      tid += 2;
+    }
+    const r16 = [1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31];
+    for (let i = 0, f = 89; f <= 96; f++, i += 2) actualKo.set(...ko(f, r16[i], r16[i + 1], r16[i]));
+    const qf = [1, 5, 9, 13, 17, 21, 25, 29];
+    for (let i = 0, f = 97; f <= 100; f++, i += 2) actualKo.set(...ko(f, qf[i], qf[i + 1], qf[i]));
+    actualKo.set(...ko(101, 1, 9, 1));
+    actualKo.set(...ko(102, 17, 25, 17));
+    actualKo.set(...ko(103, 9, 25, 9));
+    actualKo.set(...ko(104, 1, 17, 1));
+
+    const participants: SimParticipant[] = [
+      {lastName: 'A', teamIds: [1, 3, 5, 7]},
+      {lastName: 'B', teamIds: [2, 9, 17, 25]},
+      {lastName: 'C', teamIds: [11, 13, 19, 21]}
+    ];
+    const {chances, paths} = computeChancesAndPaths(teams, participants, matches, {
+      runs: 500,
+      seed: 5,
+      actualKo
+    });
+    // The frozen knockout makes the result deterministic: exactly one 100.
+    const values = Object.values(chances).sort((a, b) => b - a);
+    expect(values[0]).toBe(100);
+    expect(values[1]).toBe(0);
+    // Whoever wins, the tournament champion in their path is team 1 (frozen).
+    const winner = Object.entries(chances).find(([, v]) => v === 100)![0];
+    expect(paths[winner].championId).toBe(1);
   });
 });

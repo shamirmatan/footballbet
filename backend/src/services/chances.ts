@@ -276,6 +276,9 @@ export interface SimParticipant {
 export interface ChancesOptions {
   runs?: number;
   seed?: number;
+  // Real knockout state (finished results + drawn pairings), keyed by FIFA match
+  // number, so the sim continues from the actual bracket instead of re-seeding.
+  actualKo?: Map<number, ActualKoResult>;
 }
 
 const DEFAULT_RUNS = 20000;
@@ -287,8 +290,191 @@ export interface SimOutcome {
   championId: number | null; // the team that won the whole thing in this run
 }
 
+// --- real-bracket knockout ------------------------------------------------
+// The fixed 2026 knockout tree (FIFA match numbers). Mirrors BRACKET in
+// bracket.ts, kept here as pure data so this module stays I/O-free.
+
+type KoStage =
+  | 'LAST_32'
+  | 'LAST_16'
+  | 'QUARTER_FINALS'
+  | 'SEMI_FINALS'
+  | 'THIRD_PLACE'
+  | 'FINAL';
+
+type KoSide =
+  | {kind: 'winner'; group: string}
+  | {kind: 'runnerUp'; group: string}
+  | {kind: 'third'; candidates: string[]}
+  | {kind: 'matchWinner'; match: number}
+  | {kind: 'matchLoser'; match: number};
+
+interface KoSlot {
+  fifaMatch: number;
+  stage: KoStage;
+  home: KoSide;
+  away: KoSide;
+}
+
+const w = (group: string): KoSide => ({kind: 'winner', group});
+const r = (group: string): KoSide => ({kind: 'runnerUp', group});
+const t3 = (candidates: string[]): KoSide => ({kind: 'third', candidates});
+const mw = (match: number): KoSide => ({kind: 'matchWinner', match});
+const ml = (match: number): KoSide => ({kind: 'matchLoser', match});
+
+const KNOCKOUT: KoSlot[] = [
+  {fifaMatch: 73, stage: 'LAST_32', home: r('A'), away: r('B')},
+  {fifaMatch: 74, stage: 'LAST_32', home: w('E'), away: t3(['A', 'B', 'C', 'D', 'F'])},
+  {fifaMatch: 75, stage: 'LAST_32', home: w('F'), away: r('C')},
+  {fifaMatch: 76, stage: 'LAST_32', home: w('C'), away: r('F')},
+  {fifaMatch: 77, stage: 'LAST_32', home: w('I'), away: t3(['C', 'D', 'F', 'G', 'H'])},
+  {fifaMatch: 78, stage: 'LAST_32', home: r('E'), away: r('I')},
+  {fifaMatch: 79, stage: 'LAST_32', home: w('A'), away: t3(['C', 'E', 'F', 'H', 'I'])},
+  {fifaMatch: 80, stage: 'LAST_32', home: w('L'), away: t3(['E', 'H', 'I', 'J', 'K'])},
+  {fifaMatch: 81, stage: 'LAST_32', home: w('D'), away: t3(['B', 'E', 'F', 'I', 'J'])},
+  {fifaMatch: 82, stage: 'LAST_32', home: w('G'), away: t3(['A', 'E', 'H', 'I', 'J'])},
+  {fifaMatch: 83, stage: 'LAST_32', home: r('K'), away: r('L')},
+  {fifaMatch: 84, stage: 'LAST_32', home: w('H'), away: r('J')},
+  {fifaMatch: 85, stage: 'LAST_32', home: w('B'), away: t3(['E', 'F', 'G', 'I', 'J'])},
+  {fifaMatch: 86, stage: 'LAST_32', home: w('J'), away: r('H')},
+  {fifaMatch: 87, stage: 'LAST_32', home: w('K'), away: t3(['D', 'E', 'I', 'J', 'L'])},
+  {fifaMatch: 88, stage: 'LAST_32', home: r('D'), away: r('G')},
+  {fifaMatch: 89, stage: 'LAST_16', home: mw(74), away: mw(77)},
+  {fifaMatch: 90, stage: 'LAST_16', home: mw(73), away: mw(75)},
+  {fifaMatch: 91, stage: 'LAST_16', home: mw(76), away: mw(78)},
+  {fifaMatch: 92, stage: 'LAST_16', home: mw(79), away: mw(80)},
+  {fifaMatch: 93, stage: 'LAST_16', home: mw(83), away: mw(84)},
+  {fifaMatch: 94, stage: 'LAST_16', home: mw(81), away: mw(82)},
+  {fifaMatch: 95, stage: 'LAST_16', home: mw(86), away: mw(88)},
+  {fifaMatch: 96, stage: 'LAST_16', home: mw(85), away: mw(87)},
+  {fifaMatch: 97, stage: 'QUARTER_FINALS', home: mw(89), away: mw(90)},
+  {fifaMatch: 98, stage: 'QUARTER_FINALS', home: mw(93), away: mw(94)},
+  {fifaMatch: 99, stage: 'QUARTER_FINALS', home: mw(91), away: mw(92)},
+  {fifaMatch: 100, stage: 'QUARTER_FINALS', home: mw(95), away: mw(96)},
+  {fifaMatch: 101, stage: 'SEMI_FINALS', home: mw(97), away: mw(98)},
+  {fifaMatch: 102, stage: 'SEMI_FINALS', home: mw(99), away: mw(100)},
+  {fifaMatch: 103, stage: 'THIRD_PLACE', home: ml(101), away: ml(102)},
+  {fifaMatch: 104, stage: 'FINAL', home: mw(101), away: mw(102)}
+];
+
+// Qualification rank reached by playing a round (loser) vs winning it (advancing).
+const STAGE_RANK: Record<KoStage, number> = {
+  LAST_32: 1, LAST_16: 2, QUARTER_FINALS: 3, SEMI_FINALS: 4, THIRD_PLACE: 4, FINAL: 5
+};
+const REACHED_ON_WIN: Record<KoStage, number> = {
+  LAST_32: 2, LAST_16: 3, QUARTER_FINALS: 4, SEMI_FINALS: 5, THIRD_PLACE: 4, FINAL: 6
+};
+
+/** Actual (real-world) state of one bracket fixture, keyed by FIFA match no. */
+export interface ActualKoResult {
+  finished: boolean;
+  homeId: number | null; // resolved real teams, if the tie has been drawn
+  awayId: number | null;
+  winnerId: number | null; // real winner, if finished
+  drawAt90: boolean; // finished level at 90'/120' (ET/pens) — a 1-pt draw each
+}
+
+/** The 8 best third-placed teams, used only to fill undrawn R32 third slots. */
+function bestThirds(tables: Map<string, GroupRow[]>): number[] {
+  const thirds: GroupRow[] = [];
+  for (const [, list] of tables) if (list[2]) thirds.push(list[2]);
+  thirds.sort((x, y) => y.pts - x.pts || y.gd - x.gd || y.gf - x.gf || x.teamId - y.teamId);
+  return thirds.slice(0, 8).map((row) => row.teamId);
+}
+
+/**
+ * Play out the knockout along the REAL bracket: finished ties are frozen to
+ * their actual result, drawn-but-unplayed ties use their real pairing, and
+ * everything else is resolved from the tree and rolled. Returns per-team KO
+ * match points + deepest stage, plus the champion.
+ */
+function simulateBracketKnockout(
+  tables: Map<string, GroupRow[]>,
+  ratings: Map<number, number>,
+  actual: Map<number, ActualKoResult>,
+  rng: Rng
+): {ko: Map<number, KnockoutResult>; championId: number | null} {
+  const ko = new Map<number, KnockoutResult>();
+  const ensure = (id: number) => {
+    if (!ko.has(id)) ko.set(id, {koWins: 0, koDraws: 0, qual: 0});
+    return ko.get(id)!;
+  };
+  const winnerOf = new Map<number, number>();
+  const loserOf = new Map<number, number>();
+  const thirdsPool = bestThirds(tables);
+  let thirdIdx = 0;
+  let championId: number | null = null;
+
+  const resolveSide = (side: KoSide, actualId: number | null): number | null => {
+    if (actualId != null) return actualId;
+    switch (side.kind) {
+      case 'winner': return tables.get(side.group)?.[0]?.teamId ?? null;
+      case 'runnerUp': return tables.get(side.group)?.[1]?.teamId ?? null;
+      case 'third': return thirdsPool[thirdIdx++] ?? null;
+      case 'matchWinner': return winnerOf.get(side.match) ?? null;
+      case 'matchLoser': return loserOf.get(side.match) ?? null;
+    }
+  };
+
+  const bump = (id: number, stage: KoStage, won: boolean) => {
+    const rank = won ? REACHED_ON_WIN[stage] : STAGE_RANK[stage];
+    const e = ensure(id);
+    if (rank > e.qual) e.qual = rank;
+  };
+
+  for (const slot of KNOCKOUT) {
+    const act = actual.get(slot.fifaMatch);
+    const homeId = resolveSide(slot.home, act?.homeId ?? null);
+    const awayId = resolveSide(slot.away, act?.awayId ?? null);
+    if (homeId == null || awayId == null) continue; // not reachable this run
+
+    let winnerId: number;
+    let loserId: number;
+    let drawAt90 = false;
+
+    if (act?.finished && act.winnerId != null) {
+      winnerId = act.winnerId;
+      loserId = act.winnerId === homeId ? awayId : homeId;
+      drawAt90 = act.drawAt90;
+    } else {
+      const s = rollMatch(rng, ratings.get(homeId)!, ratings.get(awayId)!);
+      if (s.home > s.away) {
+        winnerId = homeId; loserId = awayId;
+      } else if (s.away > s.home) {
+        winnerId = awayId; loserId = homeId;
+      } else {
+        drawAt90 = true;
+        if (rng() < homeEdge(ratings.get(homeId)!, ratings.get(awayId)!)) {
+          winnerId = homeId; loserId = awayId;
+        } else {
+          winnerId = awayId; loserId = homeId;
+        }
+      }
+    }
+
+    if (drawAt90) {
+      ensure(homeId).koDraws++;
+      ensure(awayId).koDraws++;
+    } else {
+      ensure(winnerId).koWins++;
+    }
+    bump(winnerId, slot.stage, true);
+    bump(loserId, slot.stage, false);
+    winnerOf.set(slot.fifaMatch, winnerId);
+    loserOf.set(slot.fifaMatch, loserId);
+    if (slot.stage === 'FINAL') championId = winnerId;
+  }
+
+  return {ko, championId};
+}
+
 /** One simulated tournament -> per-team points, stage reached, and champion. */
-function simulateOnce(teams: SimTeam[], groupMatches: SimMatch[], rng: Rng): SimOutcome {
+function simulateOnce(
+  teams: SimTeam[],
+  groupMatches: SimMatch[],
+  actualKo: Map<number, ActualKoResult>,
+  rng: Rng
+): SimOutcome {
   const ratings = ratingByTeam(teams);
   const tables = simulateGroupStage(teams, groupMatches, rng);
 
@@ -296,16 +482,14 @@ function simulateOnce(teams: SimTeam[], groupMatches: SimMatch[], rng: Rng): Sim
   const matchPts = new Map<number, number>();
   const groupQual = new Map<number, number>(); // 0 = out, 1 = reached R32
   for (const [, list] of tables) {
-    for (const r of list) {
-      matchPts.set(r.teamId, r.w * 3 + r.d);
-      groupQual.set(r.teamId, 0);
+    for (const row of list) {
+      matchPts.set(row.teamId, row.w * 3 + row.d);
+      groupQual.set(row.teamId, 0);
     }
   }
+  for (const q of selectQualifiers(tables)) groupQual.set(q.teamId, 1);
 
-  const qualifiers = selectQualifiers(tables);
-  for (const q of qualifiers) groupQual.set(q.teamId, 1);
-
-  const ko = simulateKnockout(qualifiers, ratings, rng);
+  const {ko, championId} = simulateBracketKnockout(tables, ratings, actualKo, rng);
   for (const [teamId, res] of ko) {
     matchPts.set(teamId, (matchPts.get(teamId) ?? 0) + res.koWins * 3 + res.koDraws);
   }
@@ -314,14 +498,12 @@ function simulateOnce(teams: SimTeam[], groupMatches: SimMatch[], rng: Rng): Sim
   // already-banked qualifications as a floor (and eliminated teams capped).
   const points = new Map<number, number>();
   const stage = new Map<number, number>();
-  let championId: number | null = null;
-  for (const t of teams) {
-    const simQual = ko.get(t.api_id)?.qual ?? groupQual.get(t.api_id) ?? 0;
-    const floored = Math.max(simQual, t.achievedQual);
-    const qual = t.eliminated ? t.achievedQual : floored;
-    points.set(t.api_id, (matchPts.get(t.api_id) ?? 0) + bonusForQual(qual));
-    stage.set(t.api_id, qual);
-    if ((ko.get(t.api_id)?.qual ?? 0) === 6) championId = t.api_id;
+  for (const team of teams) {
+    const simQual = ko.get(team.api_id)?.qual ?? groupQual.get(team.api_id) ?? 0;
+    const floored = Math.max(simQual, team.achievedQual);
+    const qual = team.eliminated ? team.achievedQual : floored;
+    points.set(team.api_id, (matchPts.get(team.api_id) ?? 0) + bonusForQual(qual));
+    stage.set(team.api_id, qual);
   }
   return {points, stage, championId};
 }
@@ -364,6 +546,7 @@ export function computeChancesAndPaths(
 ): ChancesResult {
   const runs = opts.runs ?? DEFAULT_RUNS;
   const rng = mulberry32(opts.seed ?? 1);
+  const actualKo = opts.actualKo ?? new Map<number, ActualKoResult>();
   const wins = new Map<string, number>();
   for (const p of participants) wins.set(p.lastName, 0);
 
@@ -371,7 +554,7 @@ export function computeChancesAndPaths(
   let pathsRemaining = participants.length;
 
   for (let i = 0; i < runs; i++) {
-    const outcome = simulateOnce(teams, groupMatches, rng);
+    const outcome = simulateOnce(teams, groupMatches, actualKo, rng);
     let best = -Infinity;
     let leaders: string[] = [];
     for (const p of participants) {

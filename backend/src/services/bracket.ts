@@ -43,6 +43,7 @@ export interface BracketMatch {
   scoreAway: number | null
   penaltyHome: number | null
   penaltyAway: number | null
+  drawAt90: boolean // finished level at 90'/120' and settled in ET or on penalties
   winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null
 }
 
@@ -211,6 +212,7 @@ interface AppliedFixture {
   scoreAway: number | null;
   penaltyHome: number | null;
   penaltyAway: number | null;
+  drawAt90: boolean;
   winner: BracketMatch['winner'];
   status: string;
   utcDate: string;
@@ -251,6 +253,12 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     winner = 'DRAW';
   }
 
+  const drawAt90 =
+    (fx.status === 'FINISHED' || fx.status === 'AWARDED') &&
+    (fx.duration === 'EXTRA_TIME' ||
+      fx.duration === 'PENALTY_SHOOTOUT' ||
+      (fx.penaltyHome != null && fx.penaltyAway != null));
+
   return {
     home: home.resolved ? home : sideFromFixtureTeam(homeFxTeam),
     away: away.resolved ? away : sideFromFixtureTeam(awayFxTeam),
@@ -258,6 +266,7 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     scoreAway: homeIsFxHome ? fx.scoreAway : fx.scoreHome,
     penaltyHome: homeIsFxHome ? fx.penaltyHome : fx.penaltyAway,
     penaltyAway: homeIsFxHome ? fx.penaltyAway : fx.penaltyHome,
+    drawAt90,
     winner,
     status: fx.status,
     utcDate: fx.utcDate
@@ -288,6 +297,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
     let scoreAway: number | null = null;
     let penaltyHome: number | null = null;
     let penaltyAway: number | null = null;
+    let drawAt90 = false;
     let winner: BracketMatch['winner'] = null;
 
     const fx = findFixture(home, away, fixturesByStage.get(slot.stage) ?? []);
@@ -301,6 +311,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       scoreAway = applied.scoreAway;
       penaltyHome = applied.penaltyHome;
       penaltyAway = applied.penaltyAway;
+      drawAt90 = applied.drawAt90;
       winner = applied.winner;
     }
 
@@ -315,6 +326,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       scoreAway,
       penaltyHome,
       penaltyAway,
+      drawAt90,
       winner
     });
 
