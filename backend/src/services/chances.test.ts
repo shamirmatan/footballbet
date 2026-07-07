@@ -156,7 +156,7 @@ describe('simulateKnockout', () => {
   });
 });
 
-import {SimParticipant, computeChances} from './chances';
+import {SimParticipant, computeChances, computeChancesAndPaths} from './chances';
 
 describe('computeChances', () => {
   // Build a full 48-team tournament (12 groups of 4) with tiered strengths.
@@ -209,5 +209,25 @@ describe('computeChances', () => {
     expect(chances['Strong']).toBeGreaterThan(chances['A']);
     expect(chances['Strong']).toBeGreaterThan(chances['B']);
     expect(chances['Strong']).toBeGreaterThan(chances['C']);
+  });
+
+  it('captures a sample winning path for a likely winner', () => {
+    const {teams, matches} = fullTournament();
+    const participants: SimParticipant[] = [0, 1, 2, 3].map((p) => ({
+      lastName: `P${p}`,
+      teamIds: teams.filter((_, i) => i % 4 === p).map((t) => t.api_id)
+    }));
+    const {chances, paths} = computeChancesAndPaths(teams, participants, matches, {
+      runs: 2000,
+      seed: 5
+    });
+    const top = Object.entries(chances).sort((a, b) => b[1] - a[1])[0][0];
+    const path = paths[top];
+    expect(path).toBeTruthy();
+    expect(path.teams.length).toBeGreaterThan(0);
+    // The winning total is the stated margin ahead of the runner-up.
+    expect(path.margin).toBeGreaterThan(0);
+    // Every team's stage is within the valid 0..6 range.
+    expect(path.teams.every((t) => t.stageReached >= 0 && t.stageReached <= 6)).toBe(true);
   });
 });

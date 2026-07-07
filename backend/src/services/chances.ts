@@ -280,21 +280,24 @@ export interface ChancesOptions {
 
 const DEFAULT_RUNS = 20000;
 
-/** One simulated tournament -> total points per team id. */
-function simulateOnce(
-  teams: SimTeam[],
-  groupMatches: SimMatch[],
-  rng: Rng
-): Map<number, number> {
+/** Outcome of one simulated tournament. */
+export interface SimOutcome {
+  points: Map<number, number>; // total points per team (match points + bonus)
+  stage: Map<number, number>; // final stage/qualification reached per team (0..6)
+  championId: number | null; // the team that won the whole thing in this run
+}
+
+/** One simulated tournament -> per-team points, stage reached, and champion. */
+function simulateOnce(teams: SimTeam[], groupMatches: SimMatch[], rng: Rng): SimOutcome {
   const ratings = ratingByTeam(teams);
   const tables = simulateGroupStage(teams, groupMatches, rng);
 
   // group match points per team
-  const points = new Map<number, number>();
+  const matchPts = new Map<number, number>();
   const groupQual = new Map<number, number>(); // 0 = out, 1 = reached R32
   for (const [, list] of tables) {
     for (const r of list) {
-      points.set(r.teamId, r.w * 3 + r.d);
+      matchPts.set(r.teamId, r.w * 3 + r.d);
       groupQual.set(r.teamId, 0);
     }
   }
@@ -304,39 +307,75 @@ function simulateOnce(
 
   const ko = simulateKnockout(qualifiers, ratings, rng);
   for (const [teamId, res] of ko) {
-    points.set(teamId, (points.get(teamId) ?? 0) + res.koWins * 3 + res.koDraws);
+    matchPts.set(teamId, (matchPts.get(teamId) ?? 0) + res.koWins * 3 + res.koDraws);
   }
 
   // final points = group+KO match points + advancement bonus, with the real
   // already-banked qualifications as a floor (and eliminated teams capped).
-  const totals = new Map<number, number>();
+  const points = new Map<number, number>();
+  const stage = new Map<number, number>();
+  let championId: number | null = null;
   for (const t of teams) {
     const simQual = ko.get(t.api_id)?.qual ?? groupQual.get(t.api_id) ?? 0;
     const floored = Math.max(simQual, t.achievedQual);
     const qual = t.eliminated ? t.achievedQual : floored;
-    totals.set(t.api_id, (points.get(t.api_id) ?? 0) + bonusForQual(qual));
+    points.set(t.api_id, (matchPts.get(t.api_id) ?? 0) + bonusForQual(qual));
+    stage.set(t.api_id, qual);
+    if ((ko.get(t.api_id)?.qual ?? 0) === 6) championId = t.api_id;
   }
-  return totals;
+  return {points, stage, championId};
 }
 
-/** Run the Monte Carlo and return each participant's win % (0..100). */
-export function computeChances(
+/** A team's result within a participant's sample winning tournament. */
+export interface TeamPathResult {
+  teamId: number;
+  stageReached: number; // 0=group .. 6=champion
+  points: number;
+}
+
+/** An example simulated tournament in which a participant finishes first. */
+export interface WinningPath {
+  lastName: string;
+  points: number; // the participant's winning total
+  margin: number; // points ahead of the runner-up
+  championId: number | null; // the tournament champion in that scenario
+  teams: TeamPathResult[]; // the participant's teams, best first
+}
+
+export interface ChancesResult {
+  chances: Record<string, number>; // win % (0..100) per participant
+  paths: Record<string, WinningPath>; // one sample winning scenario per participant
+}
+
+/** Score a participant in a given simulated outcome. */
+function scoreParticipant(p: SimParticipant, outcome: SimOutcome): number {
+  return p.teamIds.reduce((acc, id) => acc + (outcome.points.get(id) ?? 0), 0);
+}
+
+/**
+ * Run the Monte Carlo, returning both each participant's win % and — captured
+ * from the same runs — one example tournament path in which they win outright.
+ */
+export function computeChancesAndPaths(
   teams: SimTeam[],
   participants: SimParticipant[],
   groupMatches: SimMatch[],
   opts: ChancesOptions = {}
-): Record<string, number> {
+): ChancesResult {
   const runs = opts.runs ?? DEFAULT_RUNS;
   const rng = mulberry32(opts.seed ?? 1);
   const wins = new Map<string, number>();
   for (const p of participants) wins.set(p.lastName, 0);
 
+  const paths: Record<string, WinningPath> = {};
+  let pathsRemaining = participants.length;
+
   for (let i = 0; i < runs; i++) {
-    const totals = simulateOnce(teams, groupMatches, rng);
+    const outcome = simulateOnce(teams, groupMatches, rng);
     let best = -Infinity;
     let leaders: string[] = [];
     for (const p of participants) {
-      const score = p.teamIds.reduce((acc, id) => acc + (totals.get(id) ?? 0), 0);
+      const score = scoreParticipant(p, outcome);
       if (score > best) {
         best = score;
         leaders = [p.lastName];
@@ -346,11 +385,45 @@ export function computeChances(
     }
     const share = 1 / leaders.length;
     for (const name of leaders) wins.set(name, wins.get(name)! + share);
+
+    // Capture one sample scenario per participant where they win outright.
+    if (pathsRemaining > 0 && leaders.length === 1 && !paths[leaders[0]]) {
+      const winner = participants.find((p) => p.lastName === leaders[0])!;
+      let runnerUp = -Infinity;
+      for (const p of participants) {
+        if (p.lastName === winner.lastName) continue;
+        runnerUp = Math.max(runnerUp, scoreParticipant(p, outcome));
+      }
+      paths[winner.lastName] = {
+        lastName: winner.lastName,
+        points: best,
+        margin: runnerUp === -Infinity ? best : best - runnerUp,
+        championId: outcome.championId,
+        teams: winner.teamIds
+          .map((id) => ({
+            teamId: id,
+            stageReached: outcome.stage.get(id) ?? 0,
+            points: outcome.points.get(id) ?? 0
+          }))
+          .sort((a, b) => b.points - a.points)
+      };
+      pathsRemaining--;
+    }
   }
 
-  const out: Record<string, number> = {};
+  const chances: Record<string, number> = {};
   for (const p of participants) {
-    out[p.lastName] = Math.round((wins.get(p.lastName)! / runs) * 100);
+    chances[p.lastName] = Math.round((wins.get(p.lastName)! / runs) * 100);
   }
-  return out;
+  return {chances, paths};
+}
+
+/** Run the Monte Carlo and return each participant's win % (0..100). */
+export function computeChances(
+  teams: SimTeam[],
+  participants: SimParticipant[],
+  groupMatches: SimMatch[],
+  opts: ChancesOptions = {}
+): Record<string, number> {
+  return computeChancesAndPaths(teams, participants, groupMatches, opts).chances;
 }

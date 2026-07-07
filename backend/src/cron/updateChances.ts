@@ -8,7 +8,8 @@ import {
   SimTeam,
   SimMatch,
   SimParticipant,
-  computeChances,
+  computeChancesAndPaths,
+  WinningPath,
   rating,
   RATING_BASE,
   RATING_STEP,
@@ -20,6 +21,60 @@ function groupLetter(g: string | null | undefined): string {
   if (!g) return '?';
   const m = g.match(/([A-Z])$/i);
   return m ? m[1].toUpperCase() : g.toUpperCase();
+}
+
+// How far a team goes in a scenario, phrased for the narrative.
+const STAGE_VERB: Record<number, string> = {
+  6: 'go all the way and lift the trophy',
+  5: 'reach the final',
+  4: 'reach the semi-finals',
+  3: 'reach the quarter-finals',
+  2: 'reach the round of 16',
+  1: 'get through to the round of 32'
+};
+
+/** Join names as "A", "A and B", or "A, B and C". */
+function joinNames(names: string[]): string {
+  if (names.length <= 1) return names[0] ?? '';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`;
+}
+
+/** Turn a captured winning scenario into a plain-English sentence. */
+function describeWinningPath(path: WinningPath, nameByApiId: Map<number, string>): string {
+  const nameOf = (id: number) => nameByApiId.get(id) ?? String(id);
+
+  // Group the participant's teams by how deep they went.
+  const byStage = new Map<number, string[]>();
+  for (const t of path.teams) {
+    const list = byStage.get(t.stageReached) ?? [];
+    list.push(nameOf(t.teamId));
+    byStage.set(t.stageReached, list);
+  }
+
+  const clauses: string[] = [];
+  let groupedOut: string[] = [];
+  for (const stage of [...byStage.keys()].sort((a, b) => b - a)) {
+    const names = byStage.get(stage)!;
+    if (stage === 0) groupedOut = names;
+    else clauses.push(`${joinNames(names)} ${STAGE_VERB[stage]}`);
+  }
+
+  let sentence = clauses.length
+    ? `For ${path.lastName} to win, ${clauses.join('; ')}`
+    : `For ${path.lastName} to win, his teams have to overperform badly`;
+  if (groupedOut.length) {
+    sentence += `, while ${joinNames(groupedOut)} bow out in the group stage`;
+  }
+  sentence += `. That puts him on ~${path.points} pts`;
+  sentence +=
+    path.margin > 0
+      ? `, ${path.margin} clear of the runner-up.`
+      : ` and he edges it on a tie-break.`;
+  if (path.championId != null && !path.teams.some((t) => t.teamId === path.championId)) {
+    sentence += ` (World Cup won by ${nameOf(path.championId)}.)`;
+  }
+  return sentence;
 }
 
 async function main() {
@@ -119,7 +174,7 @@ async function main() {
     `knockout bracket, then scores every participant and records the winner.`
   );
 
-  const chances = computeChances(teams, participants, matches, {runs: RUNS, seed});
+  const {chances, paths} = computeChancesAndPaths(teams, participants, matches, {runs: RUNS, seed});
 
   Logging.info(`Chances: simulation complete. Writing results:`);
 
@@ -140,6 +195,21 @@ async function main() {
   for (const {name, pct, pts} of results) {
     const bar = '█'.repeat(Math.round(pct / 5)).padEnd(20, '░');
     Logging.info(`  ${name.padEnd(12)} ${String(pct).padStart(3)}%  ${bar}  (live pts: ${pts})`);
+  }
+
+  // ── Log a sample path to victory for each participant ───────────────────────
+
+  Logging.info('Chances: a path to victory for each participant:');
+  for (const {name} of results) {
+    const path = paths[name];
+    if (path) {
+      Logging.info(`  ${describeWinningPath(path, nameByApiId)}`);
+    } else {
+      Logging.info(
+        `  For ${name} to win: no winning scenario turned up in ${RUNS.toLocaleString()} ` +
+        `runs — realistically out of it.`
+      );
+    }
   }
 
   Logging.info(`Chances: done — ${RUNS.toLocaleString()} Monte Carlo runs completed.`);
