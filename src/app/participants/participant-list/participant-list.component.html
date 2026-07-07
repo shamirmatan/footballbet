@@ -11,7 +11,7 @@
         <span class="participant-card__name">{{ displayName(participant) }}</span>
       </mat-panel-title>
       <mat-panel-description class="participant-card__points">
-        <span class="chance-chip" *ngIf="participant.chances > 0">
+        <span class="chance-chip" *ngIf="participant.chances != null">
           <span class="chance-chip__value">{{ participant.chances }}%</span>
           <span class="chance-chip__label">win</span>
         </span>
