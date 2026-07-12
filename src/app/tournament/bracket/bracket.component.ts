@@ -157,9 +157,7 @@ export class BracketComponent implements OnInit, OnDestroy {
   // match; earlier rounds are done, so start the view there instead of at R32.
   private currentStageColumnIndex(): number {
     for (let i = 0; i < this.columns.length; i++) {
-      const active = this.columns[i].cards.some(
-        (c) => c.match.status !== 'FINISHED' && c.match.status !== 'AWARDED'
-      );
+      const active = this.columns[i].cards.some((c) => !c.match.decided);
       if (active) return i;
     }
     return Math.max(0, this.columns.length - 1); // all done -> the final
@@ -285,9 +283,9 @@ export class BracketComponent implements OnInit, OnDestroy {
   // ---- side / status helpers ----
 
   loserSide(m: BracketMatch): 'home' | 'away' | null {
-    // Only a finished match has a loser; never strike through a side while the
-    // match is still live (or otherwise unfinished).
-    if (m.status !== 'FINISHED' && m.status !== 'AWARDED') return null;
+    // Only a decided match has a loser; never strike through a side while the
+    // match is still live (or otherwise unplayed).
+    if (!m.decided) return null;
     if (m.winner === 'HOME_TEAM') return 'away';
     if (m.winner === 'AWAY_TEAM') return 'home';
     return null;
@@ -307,7 +305,7 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   statusLabel(m: BracketMatch): string {
     if (this.isLive(m)) return 'LIVE';
-    if (m.status === 'FINISHED') return 'FT';
+    if (m.decided) return 'FT';
     if (m.utcDate) return this.formatKickoff(m.utcDate);
     return '';
   }

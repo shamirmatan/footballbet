@@ -83,6 +83,7 @@ export interface BracketMatch {
   scoreAway: number | null;
   penaltyHome: number | null;
   penaltyAway: number | null;
+  decided: boolean;
   winner: string | null;
 }
 

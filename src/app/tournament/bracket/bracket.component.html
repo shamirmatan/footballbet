@@ -78,7 +78,7 @@
               class="card__status"
               *ngIf="statusLabel(c.match)"
               [class.card__status--live]="isLive(c.match)"
-              [class.card__status--final]="c.match.status === 'FINISHED'"
+              [class.card__status--final]="c.match.decided"
             >
               <span class="live-dot" *ngIf="isLive(c.match)" aria-hidden="true"></span>
               {{ statusLabel(c.match) }}

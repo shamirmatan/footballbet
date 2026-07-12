@@ -313,12 +313,20 @@ describe('computeKnockoutMatchPoints', () => {
     expect(pts.get(2)).toEqual({koWins: 0, koDraws: 1});
   });
 
-  it('ignores group-stage and unfinished matches', () => {
+  it('ignores group-stage and genuinely unplayed matches', () => {
     const pts = computeKnockoutMatchPoints([
       koMatch('GROUP_STAGE' as Stage, 1, 2, 'HOME_TEAM'),
-      koMatch('LAST_32', 3, 4, 'HOME_TEAM', 'TIMED'),
+      koMatch('LAST_32', 3, 4, null, 'TIMED', 'REGULAR', {fullTime: {home: 0, away: 0}}),
     ]);
     expect(pts.size).toBe(0);
+  });
+
+  it('counts a decided knockout tie the feed still flags as scheduled', () => {
+    // Data lag: status TIMED but a real 2-3 result is in — treat it as played.
+    const pts = computeKnockoutMatchPoints([
+      koMatch('LAST_32', 5, 6, 'AWAY_TEAM', 'TIMED', 'REGULAR', {fullTime: {home: 2, away: 3}}),
+    ]);
+    expect(pts.get(6)).toEqual({koWins: 1, koDraws: 0}); // away side banked the win
   });
 
   it('accumulates points across a multi-round knockout run', () => {

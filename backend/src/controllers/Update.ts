@@ -228,7 +228,18 @@ export const penaltyScore = (score: FDMatch['score']): ScoreLine | null => {
   return null;
 };
 
-// Derive knockout standing purely from finished match RESULTS, never from
+// A knockout tie is "decided" once it is finished — or, guarding against a feed
+// that lags (still flags a played match as scheduled), once it carries a
+// full-time score and a resolvable winner and is not currently in play.
+export const isKnockoutDecided = (m: FDMatch): boolean => {
+  if (m.status === 'FINISHED' || m.status === 'AWARDED') return true;
+  if (m.status === 'IN_PLAY' || m.status === 'PAUSED') return false;
+  const ft = m.score.fullTime;
+  const played = ft && ft.home != null && ft.away != null;
+  return !!played && resolveKnockoutWinner(m.score) != null;
+};
+
+// Derive knockout standing purely from decided match RESULTS, never from
 // whether the next round's fixtures carry team ids yet (they stay TBD until the
 // bracket is drawn). In single elimination one loss is out; the only twists are
 // the semi-final (loser drops to the third-place match) and the third-place
@@ -238,8 +249,8 @@ export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, Knockou
   const deepest = new Map<number, {stage: Stage; won: boolean}>();
 
   for (const m of matches) {
-    if (m.status !== 'FINISHED') continue;
     if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    if (!isKnockoutDecided(m)) continue;
     const winner = resolveKnockoutWinner(m.score); // honours pens/ET shootouts
     if (winner !== 'HOME_TEAM' && winner !== 'AWAY_TEAM') continue;
     for (const side of ['HOME_TEAM', 'AWAY_TEAM'] as const) {
@@ -284,8 +295,8 @@ export const computeKnockoutMatchPoints = (
     return points.get(id)!;
   };
   for (const m of matches) {
-    if (m.status !== 'FINISHED' && m.status !== 'AWARDED') continue;
     if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    if (!isKnockoutDecided(m)) continue;
     const homeId = m.homeTeam.id;
     const awayId = m.awayTeam.id;
     const tiedAt90 = m.score.duration === 'EXTRA_TIME' || m.score.duration === 'PENALTY_SHOOTOUT';
@@ -574,7 +585,7 @@ const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
           // may report winner as DRAW/null; store the resolved advancing side so
           // the bracket carries the winner forward instead of stalling on TBD.
           winner:
-            m.status === 'FINISHED' && KNOCKOUT_STAGES.includes(m.stage)
+            KNOCKOUT_STAGES.includes(m.stage) && isKnockoutDecided(m)
               ? resolveKnockoutWinner(m.score) ?? m.score.winner
               : m.score.winner,
           duration: m.score.duration
@@ -605,7 +616,11 @@ const aggregateTotalsFromMatches = (matches: FDMatch[]): Map<number, TotalStats>
     return totals.get(id)!;
   };
   for (const m of matches) {
-    if (m.status !== 'FINISHED' && m.status !== 'AWARDED') continue;
+    const decided =
+      m.status === 'FINISHED' ||
+      m.status === 'AWARDED' ||
+      (KNOCKOUT_STAGES.includes(m.stage) && isKnockoutDecided(m));
+    if (!decided) continue;
     const homeId = m.homeTeam.id;
     const awayId = m.awayTeam.id;
     const gh = m.score.fullTime.home;

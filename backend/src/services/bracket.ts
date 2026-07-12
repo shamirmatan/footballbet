@@ -44,6 +44,7 @@ export interface BracketMatch {
   penaltyHome: number | null
   penaltyAway: number | null
   drawAt90: boolean // finished level at 90'/120' and settled in ET or on penalties
+  decided: boolean // played to a result, even if the feed still flags it scheduled
   winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null
 }
 
@@ -213,6 +214,7 @@ interface AppliedFixture {
   penaltyHome: number | null;
   penaltyAway: number | null;
   drawAt90: boolean;
+  decided: boolean;
   winner: BracketMatch['winner'];
   status: string;
   utcDate: string;
@@ -253,8 +255,20 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     winner = 'DRAW';
   }
 
+  // A tie is decided once finished, or — guarding against a lagging feed that
+  // still flags a played match as scheduled — once it has a score and a winner
+  // and is not currently in play.
+  const decided =
+    fx.status === 'FINISHED' ||
+    fx.status === 'AWARDED' ||
+    (fx.status !== 'IN_PLAY' &&
+      fx.status !== 'PAUSED' &&
+      fx.scoreHome != null &&
+      fx.scoreAway != null &&
+      fxWinSide != null);
+
   const drawAt90 =
-    (fx.status === 'FINISHED' || fx.status === 'AWARDED') &&
+    decided &&
     (fx.duration === 'EXTRA_TIME' ||
       fx.duration === 'PENALTY_SHOOTOUT' ||
       (fx.penaltyHome != null && fx.penaltyAway != null));
@@ -267,6 +281,7 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     penaltyHome: homeIsFxHome ? fx.penaltyHome : fx.penaltyAway,
     penaltyAway: homeIsFxHome ? fx.penaltyAway : fx.penaltyHome,
     drawAt90,
+    decided,
     winner,
     status: fx.status,
     utcDate: fx.utcDate
@@ -298,6 +313,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
     let penaltyHome: number | null = null;
     let penaltyAway: number | null = null;
     let drawAt90 = false;
+    let decided = false;
     let winner: BracketMatch['winner'] = null;
 
     const fx = findFixture(home, away, fixturesByStage.get(slot.stage) ?? []);
@@ -312,6 +328,7 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       penaltyHome = applied.penaltyHome;
       penaltyAway = applied.penaltyAway;
       drawAt90 = applied.drawAt90;
+      decided = applied.decided;
       winner = applied.winner;
     }
 
@@ -327,11 +344,12 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
       penaltyHome,
       penaltyAway,
       drawAt90,
+      decided,
       winner
     });
 
     // Feed the result forward to matchWinner/matchLoser slots.
-    if (status === 'FINISHED' && winner && winner !== 'DRAW' && home.resolved && away.resolved) {
+    if (decided && winner && winner !== 'DRAW' && home.resolved && away.resolved) {
       results.set(slot.fifaMatch, {
         winner: winner === 'HOME_TEAM' ? home : away,
         loser: winner === 'HOME_TEAM' ? away : home

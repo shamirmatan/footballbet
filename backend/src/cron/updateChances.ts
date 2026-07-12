@@ -181,7 +181,7 @@ async function main() {
       const winnerId =
         bm.winner === 'HOME_TEAM' ? homeId : bm.winner === 'AWAY_TEAM' ? awayId : null;
       actualKo.set(bm.fifaMatch, {
-        finished: bm.status === 'FINISHED' || bm.status === 'AWARDED',
+        finished: bm.decided,
         homeId,
         awayId,
         winnerId,
