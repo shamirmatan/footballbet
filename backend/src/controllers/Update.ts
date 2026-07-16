@@ -142,6 +142,8 @@ const hasUpcomingMatch = (apiId: number, matches: FDMatch[]): boolean =>
       m.status !== 'FINISHED' &&
       m.status !== 'AWARDED' &&
       m.status !== 'CANCELLED' &&
+      // A decided tie the feed still flags as scheduled is not an upcoming match.
+      !(KNOCKOUT_STAGES.includes(m.stage) && isKnockoutDecided(m)) &&
       (m.homeTeam.id === apiId || m.awayTeam.id === apiId)
   );
 

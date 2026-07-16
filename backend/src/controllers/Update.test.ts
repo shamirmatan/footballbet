@@ -365,4 +365,30 @@ describe('aggregateTeams (knockout integration)', () => {
     // 4th place is still correctly eliminated from the group stage.
     expect(aggregates.find((a) => a.api_id === 4)!.eliminated).toBe(true);
   });
+
+  it('eliminates a team that lost a decided QF the feed still flags as scheduled', () => {
+    // France's case: won its way to the QF, then lost 0-2, but the feed still
+    // reports that QF as TIMED (no FINISHED flag).
+    const standings: FDStandingGroup[] = [
+      {
+        stage: 'ALL',
+        group: 'Group A',
+        table: [
+          {position: 1, playedGames: 3, won: 3, draw: 0, lost: 0, points: 9, goalsFor: 6, goalsAgainst: 1, goalDifference: 5, team: team(1)},
+          {position: 2, playedGames: 3, won: 1, draw: 1, lost: 1, points: 4, goalsFor: 3, goalsAgainst: 3, goalDifference: 0, team: team(2)},
+          {position: 3, playedGames: 3, won: 1, draw: 0, lost: 2, points: 3, goalsFor: 2, goalsAgainst: 3, goalDifference: -1, team: team(3)},
+          {position: 4, playedGames: 3, won: 0, draw: 1, lost: 2, points: 1, goalsFor: 1, goalsAgainst: 5, goalDifference: -4, team: team(4)},
+        ],
+      },
+    ];
+    const matches: FDMatch[] = [
+      koMatch('LAST_32', 1, 50, 'HOME_TEAM'),
+      koMatch('LAST_16', 1, 51, 'HOME_TEAM'),
+      koMatch('QUARTER_FINALS', 1, 52, 'AWAY_TEAM', 'TIMED', 'REGULAR', {fullTime: {home: 0, away: 2}}),
+    ];
+
+    const t1 = aggregateTeams(standings, matches).find((a) => a.api_id === 1)!;
+    expect(t1.eliminated).toBe(true);
+    expect(t1.qualifications).toBe(3); // reached the QF, out there
+  });
 });
