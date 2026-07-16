@@ -252,6 +252,7 @@ export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, Knockou
 
   for (const m of matches) {
     if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    if (m.stage === 'THIRD_PLACE') continue; // not part of this pool
     if (!isKnockoutDecided(m)) continue;
     const winner = resolveKnockoutWinner(m.score); // honours pens/ET shootouts
     if (winner !== 'HOME_TEAM' && winner !== 'AWAY_TEAM') continue;
@@ -270,9 +271,9 @@ export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, Knockou
     const reachedRank = won ? REACHED_ON_WIN[stage] : QUALIFICATION_RANK[stage];
     let eliminated: boolean;
     if (stage === 'FINAL') eliminated = !won; // runner-up out, champion stays
-    else if (stage === 'THIRD_PLACE') eliminated = true; // both already lost the semi
-    else if (stage === 'SEMI_FINALS') eliminated = false; // loser still plays for third
-    else eliminated = !won; // R32/R16/QF: a single loss ends the run
+    else if (stage === 'THIRD_PLACE') eliminated = true; // (unused: 3rd place is skipped)
+    // No third-place match in this pool, so a semi-final loss ends the run too.
+    else eliminated = !won; // R32/R16/QF/SF: a single loss is out
     outcomes.set(id, {reachedRank, eliminated});
   }
   return outcomes;
@@ -298,6 +299,7 @@ export const computeKnockoutMatchPoints = (
   };
   for (const m of matches) {
     if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    if (m.stage === 'THIRD_PLACE') continue; // no points for the 3rd-place match
     if (!isKnockoutDecided(m)) continue;
     const homeId = m.homeTeam.id;
     const awayId = m.awayTeam.id;
@@ -618,6 +620,7 @@ const aggregateTotalsFromMatches = (matches: FDMatch[]): Map<number, TotalStats>
     return totals.get(id)!;
   };
   for (const m of matches) {
+    if (m.stage === 'THIRD_PLACE') continue; // not part of this pool
     const decided =
       m.status === 'FINISHED' ||
       m.status === 'AWARDED' ||

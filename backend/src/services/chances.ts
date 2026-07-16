@@ -423,6 +423,7 @@ function simulateBracketKnockout(
   };
 
   for (const slot of KNOCKOUT) {
+    if (slot.stage === 'THIRD_PLACE') continue; // not part of this pool — no points
     const act = actual.get(slot.fifaMatch);
     const homeId = resolveSide(slot.home, act?.homeId ?? null);
     const awayId = resolveSide(slot.away, act?.awayId ?? null);

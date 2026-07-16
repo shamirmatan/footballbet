@@ -148,19 +148,20 @@ describe('computeKnockoutOutcomes', () => {
     expect(out.get(1)).toEqual({reachedRank: 3, eliminated: true});
   });
 
-  it('does not eliminate a semi-final loser until the third-place match is played', () => {
+  it('eliminates a semi-final loser immediately (no third-place match in this pool)', () => {
     const out = computeKnockoutOutcomes([koMatch('SEMI_FINALS', 1, 2, 'HOME_TEAM')]);
-    expect(out.get(2)).toEqual({reachedRank: 4, eliminated: false}); // SF loser -> 3rd place
+    expect(out.get(2)).toEqual({reachedRank: 4, eliminated: true}); // SF loser is out
     expect(out.get(1)).toEqual({reachedRank: 5, eliminated: false}); // SF winner -> final
   });
 
-  it('eliminates both teams once the third-place match is finished', () => {
+  it('ignores the third-place match entirely', () => {
     const out = computeKnockoutOutcomes([
-      koMatch('SEMI_FINALS', 1, 2, 'HOME_TEAM'),
-      koMatch('THIRD_PLACE', 2, 3, 'HOME_TEAM'),
+      koMatch('SEMI_FINALS', 1, 2, 'HOME_TEAM'), // team 2 loses the semi
+      koMatch('SEMI_FINALS', 3, 4, 'HOME_TEAM'), // team 4 loses the semi
+      koMatch('THIRD_PLACE', 2, 4, 'HOME_TEAM'), // must not change anything
     ]);
-    expect(out.get(2)).toEqual({reachedRank: 4, eliminated: true}); // bronze winner, done
-    expect(out.get(3)).toEqual({reachedRank: 4, eliminated: true}); // bronze loser, done
+    expect(out.get(2)).toEqual({reachedRank: 4, eliminated: true});
+    expect(out.get(4)).toEqual({reachedRank: 4, eliminated: true});
   });
 
   it('crowns the final winner and eliminates the runner-up', () => {
@@ -318,6 +319,11 @@ describe('computeKnockoutMatchPoints', () => {
       koMatch('GROUP_STAGE' as Stage, 1, 2, 'HOME_TEAM'),
       koMatch('LAST_32', 3, 4, null, 'TIMED', 'REGULAR', {fullTime: {home: 0, away: 0}}),
     ]);
+    expect(pts.size).toBe(0);
+  });
+
+  it('awards no points for the third-place match', () => {
+    const pts = computeKnockoutMatchPoints([koMatch('THIRD_PLACE', 1, 2, 'HOME_TEAM')]);
     expect(pts.size).toBe(0);
   });
 
