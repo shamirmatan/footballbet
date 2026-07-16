@@ -129,7 +129,7 @@ export class HeroComponent implements OnInit, OnDestroy {
   get todayMatches(): Match[] {
     const key = this.dateKey(new Date());
     return this.allMatches
-      .filter((m) => this.dateKey(this.toLocal(m.utcDate)) === key)
+      .filter((m) => m.stage !== 'THIRD_PLACE' && this.dateKey(this.toLocal(m.utcDate)) === key)
       .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
   }
 
@@ -139,6 +139,7 @@ export class HeroComponent implements OnInit, OnDestroy {
     const key = this.dateKey(tomorrow);
     return this.allMatches
       .filter((m) => {
+        if (m.stage === 'THIRD_PLACE') return false;
         const local = this.toLocal(m.utcDate);
         return this.dateKey(local) === key && local.getHours() < TOMORROW_MORNING_CUTOFF_HOUR;
       })

@@ -502,13 +502,15 @@ const toMatchSummary = (m: FDMatch): IMatchSummary => ({
 });
 
 const deriveTournamentStage = (matches: FDMatch[]): string => {
-  const live = matches.find((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED');
+  // The third-place match isn't part of this pool, so it never drives the stage.
+  const relevant = matches.filter((m) => m.stage !== 'THIRD_PLACE');
+  const live = relevant.find((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED');
   if (live) return live.stage;
 
-  const upcoming = matches
+  const upcoming = relevant
     .filter((m) => m.status === 'TIMED' || m.status === 'SCHEDULED')
     .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
-  if (upcoming.length === matches.length) return 'NOT_STARTED';
+  if (upcoming.length === relevant.length) return 'NOT_STARTED';
   if (upcoming.length === 0) return 'COMPLETED';
   return upcoming[0].stage;
 };
@@ -526,12 +528,17 @@ const buildTournamentState = (
 } => {
   const stage = deriveTournamentStage(matches);
 
-  const live = matches.find((m) => m.status === 'IN_PLAY' || m.status === 'PAUSED');
+  // The third-place match is excluded from the pool, so it never features as the
+  // live or next-up match in the hero.
+  const live = matches.find(
+    (m) => (m.status === 'IN_PLAY' || m.status === 'PAUSED') && m.stage !== 'THIRD_PLACE'
+  );
 
   const nextCandidate = matches
     .filter(
       (m) =>
         (m.status === 'TIMED' || m.status === 'SCHEDULED') &&
+        m.stage !== 'THIRD_PLACE' &&
         m.homeTeam.name &&
         m.awayTeam.name
     )
