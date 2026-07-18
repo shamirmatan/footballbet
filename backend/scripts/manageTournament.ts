@@ -1,12 +1,15 @@
 /**
- * Updates a tournament's admin-only fields: status, competitionCode, and/or
- * draftLocked. Use this once Euro 2026's football-data.org competition code
- * is known and its draft is ready to open, or to flip it live when the
- * tournament actually starts.
+ * Updates a tournament's admin-only fields: slug, name, shortName, status,
+ * competitionCode, draftLocked, groupsCount, thirdPlaceSlots, and/or
+ * knockoutStages. Use this to rename a placeholder tournament, wire up its
+ * football-data.org competition code once known, open its draft, or flip it
+ * live when the tournament actually starts.
  *
- *   npx ts-node scripts/manageTournament.ts --tournament euro26 --status live
- *   npx ts-node scripts/manageTournament.ts --tournament euro26 --competition-code EC
- *   npx ts-node scripts/manageTournament.ts --tournament euro26 --draft-locked false
+ *   npx ts-node scripts/manageTournament.ts --tournament euro26 --rename-slug euro28 --name "UEFA Euro 2028" --short-name "Euro 2028"
+ *   npx ts-node scripts/manageTournament.ts --tournament euro28 --status live
+ *   npx ts-node scripts/manageTournament.ts --tournament euro28 --competition-code EC
+ *   npx ts-node scripts/manageTournament.ts --tournament euro28 --draft-locked false
+ *   npx ts-node scripts/manageTournament.ts --tournament euro28 --groups-count 6 --third-place-slots 4 --knockout-stages LAST_16,QUARTER_FINALS,SEMI_FINALS,FINAL
  *
  * Flags can be combined in one call. Nothing is written without --execute.
  */
@@ -28,9 +31,15 @@ async function main() {
 
   const tournament = await resolveTournamentArg(process.argv);
 
+  const renameSlug = argValue('--rename-slug');
+  const name = argValue('--name');
+  const shortName = argValue('--short-name');
   const status = argValue('--status');
   const competitionCode = argValue('--competition-code');
   const draftLockedArg = argValue('--draft-locked');
+  const groupsCountArg = argValue('--groups-count');
+  const thirdPlaceSlotsArg = argValue('--third-place-slots');
+  const knockoutStagesArg = argValue('--knockout-stages');
 
   if (status && !['upcoming', 'live', 'archived'].includes(status)) {
     console.error(`Invalid --status "${status}" (expected upcoming|live|archived).`);
@@ -38,18 +47,33 @@ async function main() {
   }
 
   const patch: Record<string, unknown> = {};
+  if (renameSlug) patch.slug = renameSlug;
+  if (name) patch.name = name;
+  if (shortName) patch.shortName = shortName;
   if (status) patch.status = status;
   if (competitionCode !== undefined) patch.competitionCode = competitionCode;
   if (draftLockedArg !== undefined) patch.draftLocked = draftLockedArg.toLowerCase() !== 'false';
+  if (groupsCountArg !== undefined) patch.groupsCount = Number(groupsCountArg);
+  if (thirdPlaceSlotsArg !== undefined) patch.thirdPlaceSlots = Number(thirdPlaceSlotsArg);
+  if (knockoutStagesArg !== undefined) patch.knockoutStages = knockoutStagesArg.split(',').map((s) => s.trim());
 
   console.log(`\nTournament "${tournament.slug}" — current:`, {
+    slug: tournament.slug,
+    name: tournament.name,
+    shortName: tournament.shortName,
     status: tournament.status,
     competitionCode: tournament.competitionCode,
-    draftLocked: tournament.draftLocked
+    draftLocked: tournament.draftLocked,
+    groupsCount: tournament.groupsCount,
+    thirdPlaceSlots: tournament.thirdPlaceSlots,
+    knockoutStages: tournament.knockoutStages
   });
 
   if (Object.keys(patch).length === 0) {
-    console.log('\nNo flags given (--status / --competition-code / --draft-locked). Nothing to do.');
+    console.log(
+      '\nNo flags given (--rename-slug / --name / --short-name / --status / --competition-code / ' +
+      '--draft-locked / --groups-count / --third-place-slots / --knockout-stages). Nothing to do.'
+    );
     await mongoose.disconnect();
     return;
   }

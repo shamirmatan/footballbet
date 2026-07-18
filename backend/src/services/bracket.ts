@@ -1,77 +1,60 @@
 import {ITeam} from '../models/Team';
 import {IMatch} from '../models/Match';
+import {BracketSlotDef, BRACKET_DEFINITIONS, SideDef, Stage} from './bracketDefinitions';
 
-export type Stage =
-  | 'LAST_32'
-  | 'LAST_16'
-  | 'QUARTER_FINALS'
-  | 'SEMI_FINALS'
-  | 'THIRD_PLACE'
-  | 'FINAL'
-
-export type SideType = 'winner' | 'runnerUp' | 'third' | 'matchWinner' | 'matchLoser'
-
-export interface SideDef {
-  type: SideType
-  group?: string
-  candidates?: string[]
-  match?: number
-}
-
-export interface BracketSlotDef {
-  fifaMatch: number
-  stage: Stage
-  home: SideDef
-  away: SideDef
-}
+export type {Stage} from './bracketDefinitions';
 
 export interface ResolvedSide {
-  api_id: number | null
-  name: string | null
-  logo: string | null
-  resolved: boolean
+  api_id: number | null;
+  name: string | null;
+  logo: string | null;
+  resolved: boolean;
 }
 
 export interface BracketMatch {
-  fifaMatch: number
-  stage: Stage
-  home: ResolvedSide
-  away: ResolvedSide
-  status: string
-  utcDate: string | null
-  scoreHome: number | null
-  scoreAway: number | null
-  penaltyHome: number | null
-  penaltyAway: number | null
-  drawAt90: boolean // finished level at 90'/120' and settled in ET or on penalties
-  decided: boolean // played to a result, even if the feed still flags it scheduled
-  winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null
+  fifaMatch: number;
+  stage: Stage;
+  home: ResolvedSide;
+  away: ResolvedSide;
+  status: string;
+  utcDate: string | null;
+  scoreHome: number | null;
+  scoreAway: number | null;
+  penaltyHome: number | null;
+  penaltyAway: number | null;
+  drawAt90: boolean; // finished level at 90'/120' and settled in ET or on penalties
+  decided: boolean; // played to a result, even if the feed still flags it scheduled
+  winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null;
 }
 
 export interface BracketStage {
-  stage: Stage
-  label: string
-  matches: BracketMatch[]
+  stage: Stage;
+  label: string;
+  matches: BracketMatch[];
 }
 
 export interface QualifiedThird {
-  api_id: number
-  name: string
-  logo: string | null
-  group: string
-  in: boolean
+  api_id: number;
+  name: string;
+  logo: string | null;
+  group: string;
+  in: boolean;
 }
 
 export interface Bracket {
-  stages: BracketStage[]
-  qualifiedThirds: QualifiedThird[]
+  stages: BracketStage[];
+  qualifiedThirds: QualifiedThird[];
 }
 
-const w = (group: string): SideDef => ({type: 'winner', group})
-const r = (group: string): SideDef => ({type: 'runnerUp', group})
-const t = (candidates: string[]): SideDef => ({type: 'third', candidates})
-const mw = (match: number): SideDef => ({type: 'matchWinner', match})
-const ml = (match: number): SideDef => ({type: 'matchLoser', match})
+export interface BracketConfig {
+  tournamentSlug: string;
+  // Ordered knockout stages for this tournament (excludes THIRD_PLACE, which
+  // is never part of the scoring pool). E.g. ['LAST_32', ..., 'FINAL'] for a
+  // 48-team World Cup, ['LAST_16', ..., 'FINAL'] for a 24-team Euro.
+  knockoutStages: Stage[];
+  // How many third-placed group teams advance to the knockout stage.
+  thirdPlaceSlots: number;
+}
 
 const STAGE_LABELS: Record<Stage, string> = {
   FINAL: 'Final',
@@ -81,17 +64,6 @@ const STAGE_LABELS: Record<Stage, string> = {
   LAST_16: 'Round of 16',
   LAST_32: 'Round of 32'
 };
-
-const STAGE_ORDER: Stage[] = [
-  'FINAL',
-  'THIRD_PLACE',
-  'SEMI_FINALS',
-  'QUARTER_FINALS',
-  'LAST_16',
-  'LAST_32'
-];
-
-const THIRD_PLACE_SLOTS = 8;
 
 const placeholder = (name: string): ResolvedSide => ({
   api_id: null,
@@ -131,6 +103,83 @@ const isGroupComplete = (arr: ITeam[]): boolean =>
 const teamAtPosition = (arr: ITeam[] | undefined, position: number): ITeam | undefined =>
   arr?.find((t) => t.position === position);
 
+const computeQualifiedThirds = (groups: Map<string, ITeam[]>, thirdPlaceSlots: number): QualifiedThird[] => {
+  const thirds: ITeam[] = [];
+  for (const arr of groups.values()) {
+    const third = teamAtPosition(arr, 3);
+    if (third) thirds.push(third);
+  }
+  thirds.sort(
+    (a, b) =>
+      b.points - a.points ||
+      b.goalDifference - a.goalDifference ||
+      b.goalsFor - a.goalsFor ||
+      a.api_id - b.api_id
+  );
+  return thirds.map((t, i) => ({
+    api_id: t.api_id,
+    name: t.name,
+    logo: t.logo || null,
+    group: normalizeLetter(t.group),
+    in: i < thirdPlaceSlots
+  }));
+};
+
+const sideFromFixtureTeam = (team: IMatch['homeTeam']): ResolvedSide =>
+  team.api_id != null
+    ? {api_id: team.api_id, name: team.name, logo: team.logo, resolved: true}
+    : placeholder('TBD');
+
+interface FixtureOutcome {
+  fxWinSide: 'home' | 'away' | null;
+  winner: BracketMatch['winner'];
+  decided: boolean;
+  drawAt90: boolean;
+}
+
+// Resolve a fixture's own result, independent of which side we structurally
+// expect to be "home"/"away" — shared by the structured (feeder-based) and
+// generic bracket builders below.
+const resolveFixtureOutcome = (fx: IMatch): FixtureOutcome => {
+  let fxWinSide: 'home' | 'away' | null =
+    fx.winner === 'HOME_TEAM' ? 'home' : fx.winner === 'AWAY_TEAM' ? 'away' : null;
+  // Resilience for a finished knockout tie the feed left without a decisive
+  // winner (a penalty/extra-time win recorded as a DRAW): break the tie on
+  // the shootout, then on the stored scoreline.
+  if (!fxWinSide && fx.status === 'FINISHED') {
+    if (fx.penaltyHome != null && fx.penaltyAway != null && fx.penaltyHome !== fx.penaltyAway) {
+      fxWinSide = fx.penaltyHome > fx.penaltyAway ? 'home' : 'away';
+    } else if (fx.scoreHome != null && fx.scoreAway != null && fx.scoreHome !== fx.scoreAway) {
+      fxWinSide = fx.scoreHome > fx.scoreAway ? 'home' : 'away';
+    }
+  }
+
+  // A tie is decided once finished, or — guarding against a lagging feed that
+  // still flags a played match as scheduled — once it has a score and a
+  // winner and is not currently in play.
+  const decided =
+    fx.status === 'FINISHED' ||
+    fx.status === 'AWARDED' ||
+    (fx.status !== 'IN_PLAY' &&
+      fx.status !== 'PAUSED' &&
+      fx.scoreHome != null &&
+      fx.scoreAway != null &&
+      fxWinSide != null);
+
+  const drawAt90 =
+    decided &&
+    (fx.duration === 'EXTRA_TIME' ||
+      fx.duration === 'PENALTY_SHOOTOUT' ||
+      (fx.penaltyHome != null && fx.penaltyAway != null));
+
+  const winner: BracketMatch['winner'] =
+    fxWinSide === 'home' ? 'HOME_TEAM' : fxWinSide === 'away' ? 'AWAY_TEAM' : fx.winner === 'DRAW' ? 'DRAW' : null;
+
+  return {fxWinSide, winner, decided, drawAt90};
+};
+
+// ---- structured bracket (known, published draw sheet) ----
+
 interface FeederResult {
   winner?: ResolvedSide;
   loser?: ResolvedSide;
@@ -161,28 +210,6 @@ const resolveSide = (
   }
 };
 
-const computeQualifiedThirds = (groups: Map<string, ITeam[]>): QualifiedThird[] => {
-  const thirds: ITeam[] = [];
-  for (const arr of groups.values()) {
-    const third = teamAtPosition(arr, 3);
-    if (third) thirds.push(third);
-  }
-  thirds.sort(
-    (a, b) =>
-      b.points - a.points ||
-      b.goalDifference - a.goalDifference ||
-      b.goalsFor - a.goalsFor ||
-      a.api_id - b.api_id
-  );
-  return thirds.map((t, i) => ({
-    api_id: t.api_id,
-    name: t.name,
-    logo: t.logo || null,
-    group: normalizeLetter(t.group),
-    in: i < THIRD_PLACE_SLOTS
-  }));
-};
-
 // The resolved deterministic side's team id uniquely identifies its knockout
 // fixture (a team plays only one match per round), so we never need to guess
 // which fixture is which by date or order.
@@ -200,11 +227,6 @@ const findFixture = (
     return ids.every((id) => fxIds.includes(id));
   });
 };
-
-const sideFromFixtureTeam = (team: IMatch['homeTeam']): ResolvedSide =>
-  team.api_id != null
-    ? {api_id: team.api_id, name: team.name, logo: team.logo, resolved: true}
-    : placeholder('TBD');
 
 interface AppliedFixture {
   home: ResolvedSide;
@@ -234,44 +256,14 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
   const homeFxTeam = homeIsFxHome ? fx.homeTeam : fx.awayTeam;
   const awayFxTeam = homeIsFxHome ? fx.awayTeam : fx.homeTeam;
 
-  let fxWinSide: 'home' | 'away' | null =
-    fx.winner === 'HOME_TEAM' ? 'home' : fx.winner === 'AWAY_TEAM' ? 'away' : null;
-  // Resilience for finished knockout ties the feed left without a decisive
-  // winner (a penalty/extra-time win recorded as a DRAW): break the tie on the
-  // shootout, then on the stored scoreline, so the bracket still carries the
-  // winner forward.
-  if (!fxWinSide && fx.status === 'FINISHED') {
-    if (fx.penaltyHome != null && fx.penaltyAway != null && fx.penaltyHome !== fx.penaltyAway) {
-      fxWinSide = fx.penaltyHome > fx.penaltyAway ? 'home' : 'away';
-    } else if (fx.scoreHome != null && fx.scoreAway != null && fx.scoreHome !== fx.scoreAway) {
-      fxWinSide = fx.scoreHome > fx.scoreAway ? 'home' : 'away';
-    }
-  }
+  const outcome = resolveFixtureOutcome(fx);
   let winner: BracketMatch['winner'] = null;
-  if (fxWinSide) {
+  if (outcome.fxWinSide) {
     const ourHomeFxSide = homeIsFxHome ? 'home' : 'away';
-    winner = fxWinSide === ourHomeFxSide ? 'HOME_TEAM' : 'AWAY_TEAM';
+    winner = outcome.fxWinSide === ourHomeFxSide ? 'HOME_TEAM' : 'AWAY_TEAM';
   } else if (fx.winner === 'DRAW') {
     winner = 'DRAW';
   }
-
-  // A tie is decided once finished, or — guarding against a lagging feed that
-  // still flags a played match as scheduled — once it has a score and a winner
-  // and is not currently in play.
-  const decided =
-    fx.status === 'FINISHED' ||
-    fx.status === 'AWARDED' ||
-    (fx.status !== 'IN_PLAY' &&
-      fx.status !== 'PAUSED' &&
-      fx.scoreHome != null &&
-      fx.scoreAway != null &&
-      fxWinSide != null);
-
-  const drawAt90 =
-    decided &&
-    (fx.duration === 'EXTRA_TIME' ||
-      fx.duration === 'PENALTY_SHOOTOUT' ||
-      (fx.penaltyHome != null && fx.penaltyAway != null));
 
   return {
     home: home.resolved ? home : sideFromFixtureTeam(homeFxTeam),
@@ -280,29 +272,35 @@ const applyFixture = (home: ResolvedSide, away: ResolvedSide, fx: IMatch): Appli
     scoreAway: homeIsFxHome ? fx.scoreAway : fx.scoreHome,
     penaltyHome: homeIsFxHome ? fx.penaltyHome : fx.penaltyAway,
     penaltyAway: homeIsFxHome ? fx.penaltyAway : fx.penaltyHome,
-    drawAt90,
-    decided,
+    drawAt90: outcome.drawAt90,
+    decided: outcome.decided,
     winner,
     status: fx.status,
     utcDate: fx.utcDate
   };
 };
 
-export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
+const buildStructuredBracket = (
+  teams: ITeam[],
+  matches: IMatch[],
+  bracketDefinition: BracketSlotDef[],
+  thirdPlaceSlots: number
+): Bracket => {
   const groups = groupsByLetter(teams);
   const results = new Map<number, FeederResult>();
   const built = new Map<number, BracketMatch>();
 
   const fixturesByStage = new Map<Stage, IMatch[]>();
+  const stagesInDefinition = new Set(bracketDefinition.map((s) => s.stage));
   for (const m of matches) {
-    if (!STAGE_ORDER.includes(m.stage as Stage)) continue;
+    if (!stagesInDefinition.has(m.stage as Stage)) continue;
     const arr = fixturesByStage.get(m.stage as Stage) ?? [];
     arr.push(m);
     fixturesByStage.set(m.stage as Stage, arr);
   }
 
   // Ascending fifaMatch so feeder results exist before dependent slots resolve.
-  for (const slot of [...BRACKET].sort((a, b) => a.fifaMatch - b.fifaMatch)) {
+  for (const slot of [...bracketDefinition].sort((a, b) => a.fifaMatch - b.fifaMatch)) {
     let home = resolveSide(slot.home, groups, results);
     let away = resolveSide(slot.away, groups, results);
 
@@ -357,54 +355,76 @@ export const buildBracket = (teams: ITeam[], matches: IMatch[]): Bracket => {
     }
   }
 
-  const stages: BracketStage[] = STAGE_ORDER.filter((stage) =>
-    BRACKET.some((s) => s.stage === stage)
-  ).map((stage) => ({
-    stage,
-    label: STAGE_LABELS[stage],
-    matches: [...built.values()]
-      .filter((m) => m.stage === stage)
-      .sort((a, b) => a.fifaMatch - b.fifaMatch)
-  }));
+  const stageOrder: Stage[] = ['FINAL', 'THIRD_PLACE', 'SEMI_FINALS', 'QUARTER_FINALS', 'LAST_16', 'LAST_32'];
+  const stages: BracketStage[] = stageOrder
+    .filter((stage) => bracketDefinition.some((s) => s.stage === stage))
+    .map((stage) => ({
+      stage,
+      label: STAGE_LABELS[stage],
+      matches: [...built.values()]
+        .filter((m) => m.stage === stage)
+        .sort((a, b) => a.fifaMatch - b.fifaMatch)
+    }));
 
-  return {stages, qualifiedThirds: computeQualifiedThirds(groups)};
+  return {stages, qualifiedThirds: computeQualifiedThirds(groups, thirdPlaceSlots)};
 };
 
-export const BRACKET: BracketSlotDef[] = [
-  {fifaMatch: 73, stage: 'LAST_32', home: r('A'), away: r('B')},
-  {fifaMatch: 74, stage: 'LAST_32', home: w('E'), away: t(['A', 'B', 'C', 'D', 'F'])},
-  {fifaMatch: 75, stage: 'LAST_32', home: w('F'), away: r('C')},
-  {fifaMatch: 76, stage: 'LAST_32', home: w('C'), away: r('F')},
-  {fifaMatch: 77, stage: 'LAST_32', home: w('I'), away: t(['C', 'D', 'F', 'G', 'H'])},
-  {fifaMatch: 78, stage: 'LAST_32', home: r('E'), away: r('I')},
-  {fifaMatch: 79, stage: 'LAST_32', home: w('A'), away: t(['C', 'E', 'F', 'H', 'I'])},
-  {fifaMatch: 80, stage: 'LAST_32', home: w('L'), away: t(['E', 'H', 'I', 'J', 'K'])},
-  {fifaMatch: 81, stage: 'LAST_32', home: w('D'), away: t(['B', 'E', 'F', 'I', 'J'])},
-  {fifaMatch: 82, stage: 'LAST_32', home: w('G'), away: t(['A', 'E', 'H', 'I', 'J'])},
-  {fifaMatch: 83, stage: 'LAST_32', home: r('K'), away: r('L')},
-  {fifaMatch: 84, stage: 'LAST_32', home: w('H'), away: r('J')},
-  {fifaMatch: 85, stage: 'LAST_32', home: w('B'), away: t(['E', 'F', 'G', 'I', 'J'])},
-  {fifaMatch: 86, stage: 'LAST_32', home: w('J'), away: r('H')},
-  {fifaMatch: 87, stage: 'LAST_32', home: w('K'), away: t(['D', 'E', 'I', 'J', 'L'])},
-  {fifaMatch: 88, stage: 'LAST_32', home: r('D'), away: r('G')},
+// ---- generic bracket (draw sheet not known/published yet) ----
 
-  {fifaMatch: 89, stage: 'LAST_16', home: mw(74), away: mw(77)},
-  {fifaMatch: 90, stage: 'LAST_16', home: mw(73), away: mw(75)},
-  {fifaMatch: 91, stage: 'LAST_16', home: mw(76), away: mw(78)},
-  {fifaMatch: 92, stage: 'LAST_16', home: mw(79), away: mw(80)},
-  {fifaMatch: 93, stage: 'LAST_16', home: mw(83), away: mw(84)},
-  {fifaMatch: 94, stage: 'LAST_16', home: mw(81), away: mw(82)},
-  {fifaMatch: 95, stage: 'LAST_16', home: mw(86), away: mw(88)},
-  {fifaMatch: 96, stage: 'LAST_16', home: mw(85), away: mw(87)},
+// Without a published draw, we can't show meaningful pre-draw placeholders
+// (which group's winner meets which) — just the real stage columns, filled
+// in with whatever matches the data source already reports (TBD slots
+// before the draw, real teams and results once it happens and plays out).
+// The frontend renders this without the feeder connector lines, since the
+// pairing structure isn't known.
+const buildGenericBracket = (
+  teams: ITeam[],
+  matches: IMatch[],
+  knockoutStages: Stage[],
+  thirdPlaceSlots: number
+): Bracket => {
+  const groups = groupsByLetter(teams);
+  const relevant = matches.filter((m) => knockoutStages.includes(m.stage as Stage));
 
-  {fifaMatch: 97, stage: 'QUARTER_FINALS', home: mw(89), away: mw(90)},
-  {fifaMatch: 98, stage: 'QUARTER_FINALS', home: mw(93), away: mw(94)},
-  {fifaMatch: 99, stage: 'QUARTER_FINALS', home: mw(91), away: mw(92)},
-  {fifaMatch: 100, stage: 'QUARTER_FINALS', home: mw(95), away: mw(96)},
+  const stages: BracketStage[] = knockoutStages
+    .filter((stage) => relevant.some((m) => m.stage === stage))
+    .map((stage, stageIdx) => {
+      const stageMatches = relevant
+        .filter((m) => m.stage === stage)
+        .sort((a, b) => a.utcDate.localeCompare(b.utcDate));
+      return {
+        stage,
+        label: STAGE_LABELS[stage] ?? stage,
+        matches: stageMatches.map((fx, i) => {
+          const outcome = resolveFixtureOutcome(fx);
+          return {
+            // Synthetic, stable-within-this-response id — there is no
+            // official match-number scheme to anchor on here.
+            fifaMatch: stageIdx * 1000 + i,
+            stage,
+            home: sideFromFixtureTeam(fx.homeTeam),
+            away: sideFromFixtureTeam(fx.awayTeam),
+            status: fx.status,
+            utcDate: fx.utcDate,
+            scoreHome: fx.scoreHome,
+            scoreAway: fx.scoreAway,
+            penaltyHome: fx.penaltyHome,
+            penaltyAway: fx.penaltyAway,
+            drawAt90: outcome.drawAt90,
+            decided: outcome.decided,
+            winner: outcome.winner
+          };
+        })
+      };
+    });
 
-  {fifaMatch: 101, stage: 'SEMI_FINALS', home: mw(97), away: mw(98)},
-  {fifaMatch: 102, stage: 'SEMI_FINALS', home: mw(99), away: mw(100)},
+  return {stages, qualifiedThirds: computeQualifiedThirds(groups, thirdPlaceSlots)};
+};
 
-  {fifaMatch: 103, stage: 'THIRD_PLACE', home: ml(101), away: ml(102)},
-  {fifaMatch: 104, stage: 'FINAL', home: mw(101), away: mw(102)}
-]
+export const buildBracket = (teams: ITeam[], matches: IMatch[], cfg: BracketConfig): Bracket => {
+  const bracketDefinition = BRACKET_DEFINITIONS[cfg.tournamentSlug];
+  if (bracketDefinition) {
+    return buildStructuredBracket(teams, matches, bracketDefinition, cfg.thirdPlaceSlots);
+  }
+  return buildGenericBracket(teams, matches, cfg.knockoutStages, cfg.thirdPlaceSlots);
+};

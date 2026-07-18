@@ -1,6 +1,13 @@
-import {BRACKET, BracketSlotDef, buildBracket, BracketMatch} from './bracket'
+import {BracketConfig, buildBracket, BracketMatch} from './bracket'
+import {WC26_BRACKET} from './bracketDefinitions'
 import {ITeam} from '../models/Team'
 import {IMatch} from '../models/Match'
+
+const wc26Cfg: BracketConfig = {
+  tournamentSlug: 'wc26',
+  knockoutStages: ['LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'FINAL'],
+  thirdPlaceSlots: 8
+};
 
 let tid = 1;
 const team = (group: string, position: number, games: number, opts: Partial<ITeam> = {}): ITeam => ({
@@ -32,20 +39,20 @@ const find = (b: ReturnType<typeof buildBracket>, fifaMatch: number): BracketMat
 describe('buildBracket standings resolution', () => {
   it('resolves Winner/Runner-up once the group is complete', () => {
     const teams = [...completeGroup('A'), ...completeGroup('B')];
-    const m73 = find(buildBracket(teams, []), 73); // Runner-up A vs Runner-up B
+    const m73 = find(buildBracket(teams, [], wc26Cfg), 73); // Runner-up A vs Runner-up B
     expect(m73.home).toMatchObject({name: 'RunnerA', resolved: true});
     expect(m73.away).toMatchObject({name: 'RunnerB', resolved: true});
   });
 
   it('keeps slots as placeholders while a group is incomplete', () => {
     const incompleteA = completeGroup('A').map((t) => ({...t, games: 1}));
-    const m79 = find(buildBracket(incompleteA, []), 79); // Winner A vs 3rd
+    const m79 = find(buildBracket(incompleteA, [], wc26Cfg), 79); // Winner A vs 3rd
     expect(m79.home).toMatchObject({name: 'Winner A', resolved: false});
   });
 
   it('always shows third-place slots as candidate placeholders pre-draw', () => {
     const teams = completeGroup('A');
-    const m79 = find(buildBracket(teams, []), 79);
+    const m79 = find(buildBracket(teams, [], wc26Cfg), 79);
     expect(m79.away).toMatchObject({name: 'Best 3rd (C/E/F/H/I)', resolved: false});
   });
 
@@ -55,7 +62,7 @@ describe('buildBracket standings resolution', () => {
       g[2] = {...g[2], points: 10 - i}; // 3rd-placed team, descending points
       return g;
     });
-    const {qualifiedThirds} = buildBracket(teams, []);
+    const {qualifiedThirds} = buildBracket(teams, [], wc26Cfg);
     expect(qualifiedThirds).toHaveLength(9);
     expect(qualifiedThirds.slice(0, 8).every((t) => t.in)).toBe(true);
     expect(qualifiedThirds[8].in).toBe(false); // 9th-best third misses out
@@ -95,7 +102,7 @@ describe('buildBracket fixture join', () => {
       homeTeam: {api_id: winnerA.api_id, name: winnerA.name, logo: ''},
       awayTeam: {api_id: 777, name: 'Poland', logo: 'pl.png'}
     });
-    const m79 = find(buildBracket(teams, [fx]), 79);
+    const m79 = find(buildBracket(teams, [fx], wc26Cfg), 79);
     expect(m79.home).toMatchObject({api_id: winnerA.api_id, resolved: true});
     expect(m79.away).toMatchObject({api_id: 777, name: 'Poland', resolved: true});
     expect(m79.scoreHome).toBe(2);
@@ -117,7 +124,7 @@ describe('buildBracket fixture join', () => {
       homeTeam: {api_id: 777, name: 'Poland', logo: 'pl.png'},
       awayTeam: {api_id: winnerA.api_id, name: winnerA.name, logo: ''}
     });
-    const m79 = find(buildBracket(teams, [fx]), 79);
+    const m79 = find(buildBracket(teams, [fx], wc26Cfg), 79);
     expect(m79.home).toMatchObject({api_id: winnerA.api_id}); // our home stays WinnerA
     expect(m79.scoreHome).toBe(3); // WinnerA scored 3
     expect(m79.away).toMatchObject({name: 'Poland'});
@@ -141,7 +148,7 @@ describe('buildBracket fixture join', () => {
       homeTeam: {api_id: winnerA.api_id, name: winnerA.name, logo: ''},
       awayTeam: {api_id: 777, name: 'Poland', logo: 'pl.png'}
     });
-    const m79 = find(buildBracket(teams, [fx]), 79);
+    const m79 = find(buildBracket(teams, [fx], wc26Cfg), 79);
     expect(m79.scoreHome).toBe(1);
     expect(m79.scoreAway).toBe(1);
     expect(m79.penaltyHome).toBe(2);
@@ -163,31 +170,31 @@ describe('buildBracket fixture join', () => {
       homeTeam: {api_id: runnerA.api_id, name: runnerA.name, logo: ''},
       awayTeam: {api_id: runnerB.api_id, name: runnerB.name, logo: ''}
     });
-    const m90 = find(buildBracket(teams, [fx73]), 90); // home = Winner M73
+    const m90 = find(buildBracket(teams, [fx73], wc26Cfg), 90); // home = Winner M73
     expect(m90.home).toMatchObject({api_id: runnerA.api_id, resolved: true});
   });
 
   it('leaves a slot unjoined (placeholder, no score) before the draw', () => {
     const teams = completeGroup('A');
-    const m79 = find(buildBracket(teams, []), 79);
+    const m79 = find(buildBracket(teams, [], wc26Cfg), 79);
     expect(m79.away.resolved).toBe(false);
     expect(m79.scoreHome).toBeNull();
     expect(m79.status).toBe('SCHEDULED');
   });
 });
 
-describe('BRACKET structure', () => {
+describe('WC26_BRACKET structure', () => {
   it('defines all 32 knockout matches, numbered 73..104', () => {
-    expect(BRACKET).toHaveLength(32)
-    const numbers = BRACKET.map((s) => s.fifaMatch).sort((a, b) => a - b)
+    expect(WC26_BRACKET).toHaveLength(32)
+    const numbers = WC26_BRACKET.map((s) => s.fifaMatch).sort((a, b) => a - b)
     expect(numbers[0]).toBe(73)
     expect(numbers[numbers.length - 1]).toBe(104)
     expect(new Set(numbers).size).toBe(32)
   })
 
   it('only references feeder matches with a lower number that exist', () => {
-    const known = new Set(BRACKET.map((s) => s.fifaMatch))
-    for (const slot of BRACKET) {
+    const known = new Set(WC26_BRACKET.map((s) => s.fifaMatch))
+    for (const slot of WC26_BRACKET) {
       for (const side of [slot.home, slot.away]) {
         if (side.type === 'matchWinner' || side.type === 'matchLoser') {
           expect(known.has(side.match!)).toBe(true)
@@ -198,7 +205,7 @@ describe('BRACKET structure', () => {
   })
 
   it('gives every Round-of-32 match at least one deterministic side', () => {
-    const r32 = BRACKET.filter((s) => s.stage === 'LAST_32')
+    const r32 = WC26_BRACKET.filter((s) => s.stage === 'LAST_32')
     expect(r32).toHaveLength(16)
     for (const slot of r32) {
       const deterministic = [slot.home, slot.away].some(
@@ -207,4 +214,69 @@ describe('BRACKET structure', () => {
       expect(deterministic).toBe(true)
     }
   })
+})
+
+describe('buildBracket generic fallback (no known draw sheet)', () => {
+  const euroCfg: BracketConfig = {
+    tournamentSlug: 'euro28', // not in BRACKET_DEFINITIONS
+    knockoutStages: ['LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'FINAL'],
+    thirdPlaceSlots: 4
+  };
+
+  it('never uses the structured (WC26) path for an unlisted tournament slug', () => {
+    const teams = completeGroup('A');
+    const bracket = buildBracket(teams, [], euroCfg);
+    // No knockout matches reported yet -> no stages at all (no placeholder
+    // "Winner of Group X" guessing without a known draw).
+    expect(bracket.stages).toHaveLength(0);
+  });
+
+  it('shows a TBD slot for an undrawn knockout fixture', () => {
+    const fx = fixture({stage: 'LAST_16', status: 'TIMED', winner: null});
+    const bracket = buildBracket([], [fx], euroCfg);
+    const r16 = bracket.stages.find((s) => s.stage === 'LAST_16')!;
+    expect(r16.matches).toHaveLength(1);
+    expect(r16.matches[0].home.resolved).toBe(false);
+    expect(r16.matches[0].away.resolved).toBe(false);
+    expect(r16.matches[0].decided).toBe(false);
+  });
+
+  it('surfaces a real result once the fixture is drawn and finished', () => {
+    const fx = fixture({
+      stage: 'LAST_16',
+      status: 'FINISHED',
+      winner: 'AWAY_TEAM',
+      scoreHome: 0,
+      scoreAway: 2,
+      homeTeam: {api_id: 11, name: 'Spain', logo: ''},
+      awayTeam: {api_id: 22, name: 'Italy', logo: ''}
+    });
+    const bracket = buildBracket([], [fx], euroCfg);
+    const r16 = bracket.stages.find((s) => s.stage === 'LAST_16')!;
+    const m = r16.matches[0];
+    expect(m.home).toMatchObject({api_id: 11, name: 'Spain', resolved: true});
+    expect(m.away).toMatchObject({api_id: 22, name: 'Italy', resolved: true});
+    expect(m.scoreHome).toBe(0);
+    expect(m.scoreAway).toBe(2);
+    expect(m.winner).toBe('AWAY_TEAM');
+    expect(m.decided).toBe(true);
+  });
+
+  it('only emits columns for knockout stages that actually have matches', () => {
+    const fx = fixture({stage: 'LAST_16', status: 'TIMED'});
+    const bracket = buildBracket([], [fx], euroCfg);
+    expect(bracket.stages.map((s) => s.stage)).toEqual(['LAST_16']);
+  });
+
+  it('uses the tournament\'s own thirdPlaceSlots, not WC26\'s 8', () => {
+    const teams = ['A', 'B', 'C', 'D', 'E', 'F'].flatMap((letter, i) => {
+      const g = completeGroup(letter);
+      g[2] = {...g[2], points: 10 - i};
+      return g;
+    });
+    const {qualifiedThirds} = buildBracket(teams, [], euroCfg);
+    expect(qualifiedThirds).toHaveLength(6);
+    expect(qualifiedThirds.slice(0, 4).every((t) => t.in)).toBe(true);
+    expect(qualifiedThirds[4].in).toBe(false); // 5th-best third misses out (only 4 slots)
+  });
 })

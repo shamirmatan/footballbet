@@ -5,26 +5,13 @@ import TournamentState, {IMatchSummary} from '../models/TournamentState';
 import Match from '../models/Match';
 import {ITournamentModel} from '../models/Tournament';
 import {FDCompetition, FDMatch, FDStandingGroup, FDStandingRow, FootballDataClient, Stage} from '../services/footballData';
+import {qualificationRank} from '../services/qualificationRank';
 
-const STAGE_ORDER: Stage[] = [
-  'GROUP_STAGE',
-  'LAST_32',
-  'LAST_16',
-  'QUARTER_FINALS',
-  'SEMI_FINALS',
-  'THIRD_PLACE',
-  'FINAL'
-];
-
-const QUALIFICATION_RANK: Record<Stage, number> = {
-  GROUP_STAGE: 0,
-  LAST_32: 1,
-  LAST_16: 2,
-  QUARTER_FINALS: 3,
-  SEMI_FINALS: 4,
-  THIRD_PLACE: 4,
-  FINAL: 5
-};
+// Defaults reproduce WC26's exact original behaviour, so every existing call
+// site/test keeps working unchanged; runUpdate() passes the tournament's own
+// values for everything else (see Tournament.knockoutStages/thirdPlaceSlots).
+const WC26_KNOCKOUT_STAGES: Stage[] = ['LAST_32', 'LAST_16', 'QUARTER_FINALS', 'SEMI_FINALS', 'FINAL'];
+const WC26_THIRD_PLACE_SLOTS = 8;
 
 const QUALIFICATION_BONUS: Record<number, number> = {
   0: 0,
@@ -40,10 +27,6 @@ const groupLetterFromStanding = (group: string): string => {
   const match = group.match(/Group\s+([A-Z])/i);
   return match ? match[1].toUpperCase() : group;
 };
-
-// 2026 format: 12 groups of 4. The top two of every group plus the 8 best
-// third-placed teams reach the round of 32; 4th place is always out.
-const THIRD_PLACE_SLOTS = 8;
 
 export interface GroupOutcome {
   qualified: Set<number>; // clinched a round-of-32 spot (definite)
@@ -63,7 +46,10 @@ const compareThirds = (a: FDStandingRow, b: FDStandingRow): number =>
 // fixtures: the round-of-32 matches carry no team ids until the whole group
 // stage finishes and the bracket is drawn, so a clinched team would otherwise
 // look like it has "no upcoming match" and be flagged eliminated.
-export const computeGroupOutcomes = (standings: FDStandingGroup[]): GroupOutcome => {
+export const computeGroupOutcomes = (
+  standings: FDStandingGroup[],
+  thirdPlaceSlots: number = WC26_THIRD_PLACE_SLOTS
+): GroupOutcome => {
   const qualified = new Set<number>();
   const eliminated = new Set<number>();
 
@@ -80,11 +66,11 @@ export const computeGroupOutcomes = (standings: FDStandingGroup[]): GroupOutcome
   }
 
   // Third place is only decidable when all groups have finished, since it ranks
-  // thirds across the whole tournament for the 8 wildcard slots.
+  // thirds across the whole tournament for the wildcard slots.
   if (allComplete) {
     const ranked = [...thirds].sort(compareThirds);
     ranked.forEach((r, i) => {
-      if (i < THIRD_PLACE_SLOTS) qualified.add(r.team.id);
+      if (i < thirdPlaceSlots) qualified.add(r.team.id);
       else eliminated.add(r.team.id);
     });
   }
@@ -116,13 +102,17 @@ interface TeamAggregate {
   isChampion: boolean;
 }
 
-const computeStageByTeam = (matches: FDMatch[]): Map<number, Stage> => {
+const computeStageByTeam = (
+  matches: FDMatch[],
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES
+): Map<number, Stage> => {
   const best = new Map<number, Stage>();
+  const depth = (s: Stage) => qualificationRank(s, knockoutStages, false);
   for (const m of matches) {
     for (const t of [m.homeTeam, m.awayTeam]) {
       if (!t.id) continue;
       const current = best.get(t.id);
-      if (!current || STAGE_ORDER.indexOf(m.stage) > STAGE_ORDER.indexOf(current)) {
+      if (!current || depth(m.stage) > depth(current)) {
         best.set(t.id, m.stage);
       }
     }
@@ -138,44 +128,37 @@ const findChampionId = (matches: FDMatch[]): number | null => {
   return null;
 };
 
-const hasUpcomingMatch = (apiId: number, matches: FDMatch[]): boolean =>
+// A match's stage counts as "knockout-shaped" if it's in this tournament's
+// own knockoutStages, or is a third-place match — the latter is never part
+// of tournament.knockoutStages (it doesn't earn qualification points) but
+// still needs recognising as a real knockout fixture when one exists (WC26).
+// A tournament with no third-place match (Euro) simply never reports that
+// stage, so including it here is harmless.
+const isKnockoutShapedStage = (stage: Stage, knockoutStages: Stage[]): boolean =>
+  knockoutStages.includes(stage) || stage === 'THIRD_PLACE';
+
+const hasUpcomingMatch = (
+  apiId: number,
+  matches: FDMatch[],
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES
+): boolean =>
   matches.some(
     (m) =>
       m.status !== 'FINISHED' &&
       m.status !== 'AWARDED' &&
       m.status !== 'CANCELLED' &&
       // A decided tie the feed still flags as scheduled is not an upcoming match.
-      !(KNOCKOUT_STAGES.includes(m.stage) && isKnockoutDecided(m)) &&
+      !(isKnockoutShapedStage(m.stage, knockoutStages) && isKnockoutDecided(m)) &&
       (m.homeTeam.id === apiId || m.awayTeam.id === apiId)
   );
 
-const buildQualifications = (highestStage: Stage, isChampion: boolean): number => {
-  const rank = QUALIFICATION_RANK[highestStage] ?? 0;
-  return isChampion ? rank + 1 : rank;
-};
-
-const KNOCKOUT_STAGES: Stage[] = [
-  'LAST_32',
-  'LAST_16',
-  'QUARTER_FINALS',
-  'SEMI_FINALS',
-  'THIRD_PLACE',
-  'FINAL'
-];
-
-// Qualification rank banked by the WINNER of a finished match at each stage —
-// i.e. the round they have just advanced INTO. Credited on the win so points
-// and "still alive" status never wait on the next fixture being drawn. A
-// THIRD_PLACE win is terminal and adds nothing over reaching the semis.
-const REACHED_ON_WIN: Record<Stage, number> = {
-  GROUP_STAGE: 0,
-  LAST_32: 2,
-  LAST_16: 3,
-  QUARTER_FINALS: 4,
-  SEMI_FINALS: 5,
-  THIRD_PLACE: 4,
-  FINAL: 6
-};
+// Qualification rank for a team's highest stage reached, +1 if they won it
+// (i.e. are the champion of that stage — only meaningful for the final).
+const buildQualifications = (
+  highestStage: Stage,
+  isChampion: boolean,
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES
+): number => qualificationRank(highestStage, knockoutStages, isChampion);
 
 export interface KnockoutOutcome {
   reachedRank: number; // highest qualification rank reached (1..6)
@@ -248,12 +231,15 @@ export const isKnockoutDecided = (m: FDMatch): boolean => {
 // bracket is drawn). In single elimination one loss is out; the only twists are
 // the semi-final (loser drops to the third-place match) and the third-place
 // match itself (both sides are done afterwards).
-export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, KnockoutOutcome> => {
-  const order = (s: Stage) => STAGE_ORDER.indexOf(s);
+export const computeKnockoutOutcomes = (
+  matches: FDMatch[],
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES
+): Map<number, KnockoutOutcome> => {
+  const order = (s: Stage) => qualificationRank(s, knockoutStages, false);
   const deepest = new Map<number, {stage: Stage; won: boolean}>();
 
   for (const m of matches) {
-    if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    if (!isKnockoutShapedStage(m.stage, knockoutStages)) continue;
     if (m.stage === 'THIRD_PLACE') continue; // not part of this pool
     if (!isKnockoutDecided(m)) continue;
     const winner = resolveKnockoutWinner(m.score); // honours pens/ET shootouts
@@ -270,7 +256,7 @@ export const computeKnockoutOutcomes = (matches: FDMatch[]): Map<number, Knockou
 
   const outcomes = new Map<number, KnockoutOutcome>();
   for (const [id, {stage, won}] of deepest) {
-    const reachedRank = won ? REACHED_ON_WIN[stage] : QUALIFICATION_RANK[stage];
+    const reachedRank = qualificationRank(stage, knockoutStages, won);
     let eliminated: boolean;
     if (stage === 'FINAL') eliminated = !won; // runner-up out, champion stays
     else if (stage === 'THIRD_PLACE') eliminated = true; // (unused: 3rd place is skipped)
@@ -292,7 +278,8 @@ export interface KnockoutMatchPoints {
 // for advancing through the qualification bonus). Penalty/extra-time deciders are
 // detected via score.duration so the visible final score is irrelevant.
 export const computeKnockoutMatchPoints = (
-  matches: FDMatch[]
+  matches: FDMatch[],
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES
 ): Map<number, KnockoutMatchPoints> => {
   const points = new Map<number, KnockoutMatchPoints>();
   const ensure = (id: number) => {
@@ -300,7 +287,7 @@ export const computeKnockoutMatchPoints = (
     return points.get(id)!;
   };
   for (const m of matches) {
-    if (!KNOCKOUT_STAGES.includes(m.stage)) continue;
+    if (!isKnockoutShapedStage(m.stage, knockoutStages)) continue;
     if (m.stage === 'THIRD_PLACE') continue; // no points for the 3rd-place match
     if (!isKnockoutDecided(m)) continue;
     const homeId = m.homeTeam.id;
@@ -373,17 +360,22 @@ const computeGroupStatsFromMatches = (
   return stats;
 };
 
-export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[]): TeamAggregate[] => {
-  const stageByTeam = computeStageByTeam(matches);
+export const aggregateTeams = (
+  standings: FDStandingGroup[],
+  matches: FDMatch[],
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES,
+  thirdPlaceSlots: number = WC26_THIRD_PLACE_SLOTS
+): TeamAggregate[] => {
+  const stageByTeam = computeStageByTeam(matches, knockoutStages);
   const championId = findChampionId(matches);
   // Compute W/D/L from match data so live scores are reflected immediately,
   // rather than waiting for the standings API to update at full-time.
   const groupStats = computeGroupStatsFromMatches(matches);
   // Advancement/elimination come from the standings (group stage) and finished
   // match results (knockout), never from not-yet-drawn next-round fixtures.
-  const groupOutcomes = computeGroupOutcomes(standings);
-  const knockoutOutcomes = computeKnockoutOutcomes(matches);
-  const knockoutMatchPoints = computeKnockoutMatchPoints(matches);
+  const groupOutcomes = computeGroupOutcomes(standings, thirdPlaceSlots);
+  const knockoutOutcomes = computeKnockoutOutcomes(matches, knockoutStages);
+  const knockoutMatchPoints = computeKnockoutMatchPoints(matches, knockoutStages);
 
   const aggregates: TeamAggregate[] = [];
   for (const group of standings) {
@@ -400,7 +392,7 @@ export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[])
       // (group) or winning a knockout tie — so neither points nor "alive" status
       // waits on the next round's fixtures being drawn.
       const qualifications = Math.max(
-        buildQualifications(highest, isChampion),
+        buildQualifications(highest, isChampion, knockoutStages),
         knockout?.reachedRank ?? 0,
         groupOutcomes.qualified.has(id) ? 1 : 0
       );
@@ -421,7 +413,7 @@ export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[])
         (knockout
           ? knockout.eliminated
           : assignedToKnockout
-            ? !hasUpcomingMatch(id, matches) && games > 0
+            ? !hasUpcomingMatch(id, matches, knockoutStages) && games > 0
             : groupOutcomes.eliminated.has(id));
       aggregates.push({
         api_id: row.team.id,
@@ -571,7 +563,11 @@ const upsertTournamentState = async (
   );
 };
 
-const upsertMatches = async (tournamentId: mongoose.Types.ObjectId, matches: FDMatch[]): Promise<number> => {
+const upsertMatches = async (
+  tournamentId: mongoose.Types.ObjectId,
+  matches: FDMatch[],
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES
+): Promise<number> => {
   let upserted = 0;
   for (const m of matches) {
     await Match.updateOne(
@@ -603,7 +599,7 @@ const upsertMatches = async (tournamentId: mongoose.Types.ObjectId, matches: FDM
           // may report winner as DRAW/null; store the resolved advancing side so
           // the bracket carries the winner forward instead of stalling on TBD.
           winner:
-            KNOCKOUT_STAGES.includes(m.stage) && isKnockoutDecided(m)
+            isKnockoutShapedStage(m.stage, knockoutStages) && isKnockoutDecided(m)
               ? resolveKnockoutWinner(m.score) ?? m.score.winner
               : m.score.winner,
           duration: m.score.duration
@@ -625,7 +621,10 @@ interface TotalStats {
   goalsAgainst: number;
 }
 
-const aggregateTotalsFromMatches = (matches: FDMatch[]): Map<number, TotalStats> => {
+const aggregateTotalsFromMatches = (
+  matches: FDMatch[],
+  knockoutStages: Stage[] = WC26_KNOCKOUT_STAGES
+): Map<number, TotalStats> => {
   const totals = new Map<number, TotalStats>();
   const ensure = (id: number): TotalStats => {
     if (!totals.has(id)) {
@@ -638,7 +637,7 @@ const aggregateTotalsFromMatches = (matches: FDMatch[]): Map<number, TotalStats>
     const decided =
       m.status === 'FINISHED' ||
       m.status === 'AWARDED' ||
-      (KNOCKOUT_STAGES.includes(m.stage) && isKnockoutDecided(m));
+      (isKnockoutShapedStage(m.stage, knockoutStages) && isKnockoutDecided(m));
     if (!decided) continue;
     const homeId = m.homeTeam.id;
     const awayId = m.awayTeam.id;
@@ -710,10 +709,11 @@ export const runUpdate = async (tournament: ITournamentModel): Promise<UpdateRep
     client.getMatches()
   ]);
 
-  const aggregates = aggregateTeams(standings, matches);
+  const knockoutStages = tournament.knockoutStages as Stage[];
+  const aggregates = aggregateTeams(standings, matches, knockoutStages, tournament.thirdPlaceSlots);
   const teamsUpserted = await upsertTeams(tournamentId, aggregates);
-  const matchesUpserted = await upsertMatches(tournamentId, matches);
-  await writeTotalStats(tournamentId, aggregateTotalsFromMatches(matches));
+  const matchesUpserted = await upsertMatches(tournamentId, matches, knockoutStages);
+  await writeTotalStats(tournamentId, aggregateTotalsFromMatches(matches, knockoutStages));
   const participantsUpdated = await recomputeParticipantPoints(tournamentId);
   await upsertTournamentState(tournamentId, competition, matches);
   const championId = findChampionId(matches);

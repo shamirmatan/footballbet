@@ -223,6 +223,16 @@ export class BracketComponent implements OnInit, OnDestroy {
       return;
     }
 
+    // WC26's published draw sheet uses fixed FIFA match numbers 73..104 with
+    // a known feeder structure (FEEDERS below); a tournament with no known
+    // draw yet (see the generic builder in the backend's bracket.ts) reports
+    // plain stage columns instead — lay those out without pretending to know
+    // connector lines that don't exist yet.
+    if (!byNumber.has(ROOT)) {
+      this.buildSimpleColumns(byStage);
+      return;
+    }
+
     // 1. Leaf order: depth-first walk from the Final so the two feeders of
     //    every match are adjacent in their column.
     const leafOrder: number[] = [];
@@ -293,6 +303,26 @@ export class BracketComponent implements OnInit, OnDestroy {
       }
     }
     this.connectors = connectors;
+  }
+
+  // Simple stacked-column layout for a tournament with no known draw sheet
+  // yet: each stage is its own column, cards stacked in kickoff order, no
+  // feeder connector lines (there's no known pairing structure to draw).
+  private buildSimpleColumns(byStage: Map<string, BracketMatch[]>): void {
+    const stages = COLUMN_ORDER.filter((s) => byStage.has(s));
+    const maxCount = Math.max(1, ...stages.map((s) => (byStage.get(s) ?? []).length));
+
+    this.treeHeight = maxCount * SLOT_HEIGHT - SLOT_GAP;
+    this.treeWidth = stages.length * COLUMN_WIDTH + (stages.length - 1) * COLUMN_GAP;
+
+    this.columns = stages.map((stage) => {
+      const matches = [...(byStage.get(stage) ?? [])].sort((a, b) =>
+        (a.utcDate ?? '').localeCompare(b.utcDate ?? '')
+      );
+      const cards = matches.map((match, i) => ({match, cy: i * SLOT_HEIGHT + CARD_HEIGHT / 2}));
+      return {stage, label: COLUMN_LABELS[stage] ?? stage, cards};
+    });
+    this.connectors = [];
   }
 
   // ---- side / status helpers ----
