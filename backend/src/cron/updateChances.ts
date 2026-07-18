@@ -16,7 +16,8 @@ import {
   RATING_BASE,
   RATING_STEP,
 } from '../services/chances';
-import {buildBracket} from '../services/bracket';
+import {buildBracket, Stage} from '../services/bracket';
+import {BRACKET_DEFINITIONS} from '../services/bracketDefinitions';
 
 const RUNS = Number(process.env.CHANCES_RUNS || 20000);
 
@@ -26,15 +27,22 @@ function groupLetter(g: string | null | undefined): string {
   return m ? m[1].toUpperCase() : g.toUpperCase();
 }
 
-// How far a team goes in a scenario, phrased for the narrative.
-const STAGE_VERB: Record<number, string> = {
-  6: 'go all the way and lift the trophy',
-  5: 'reach the final',
-  4: 'reach the semi-finals',
-  3: 'reach the quarter-finals',
-  2: 'reach the round of 16',
-  1: 'get through to the round of 32'
+const STAGE_PHRASE: Partial<Record<Stage, string>> = {
+  LAST_32: 'round of 32',
+  LAST_16: 'round of 16',
+  QUARTER_FINALS: 'quarter-finals',
+  SEMI_FINALS: 'semi-finals',
+  FINAL: 'final'
 };
+
+// How far a team goes in a scenario, phrased for the narrative. `rank` is
+// 1-based depth into this tournament's own knockoutStages list (see
+// qualificationRank.ts) — rank === knockoutStages.length + 1 is the champion.
+function stageVerb(rankReached: number, knockoutStages: Stage[]): string {
+  if (rankReached > knockoutStages.length) return 'go all the way and lift the trophy';
+  const stage = knockoutStages[rankReached - 1];
+  return `reach the ${STAGE_PHRASE[stage] ?? stage.toLowerCase()}`;
+}
 
 /** Join names as "A", "A and B", or "A, B and C". */
 function joinNames(names: string[]): string {
@@ -44,7 +52,12 @@ function joinNames(names: string[]): string {
 }
 
 /** Turn a captured winning scenario into a plain-English sentence. */
-function describeWinningPath(path: WinningPath, nameByApiId: Map<number, string>): string {
+function describeWinningPath(
+  path: WinningPath,
+  nameByApiId: Map<number, string>,
+  knockoutStages: Stage[],
+  tournamentName: string
+): string {
   const nameOf = (id: number) => nameByApiId.get(id) ?? String(id);
 
   // Group the participant's teams by how deep they went.
@@ -60,7 +73,7 @@ function describeWinningPath(path: WinningPath, nameByApiId: Map<number, string>
   for (const stage of [...byStage.keys()].sort((a, b) => b - a)) {
     const names = byStage.get(stage)!;
     if (stage === 0) groupedOut = names;
-    else clauses.push(`${joinNames(names)} ${STAGE_VERB[stage]}`);
+    else clauses.push(`${joinNames(names)} ${stageVerb(stage, knockoutStages)}`);
   }
 
   let sentence = clauses.length
@@ -75,7 +88,7 @@ function describeWinningPath(path: WinningPath, nameByApiId: Map<number, string>
       ? `, ${path.margin} clear of the runner-up.`
       : ` and he edges it on a tie-break.`;
   if (path.championId != null && !path.teams.some((t) => t.teamId === path.championId)) {
-    sentence += ` (World Cup won by ${nameOf(path.championId)}.)`;
+    sentence += ` (${tournamentName} won by ${nameOf(path.championId)}.)`;
   }
   return sentence;
 }
@@ -93,6 +106,20 @@ async function main() {
     return;
   }
   const tournamentId = tournament._id;
+  const knockoutStages = tournament.knockoutStages as Stage[];
+
+  // The Monte Carlo continues from the tournament's ACTUAL drawn bracket, so
+  // it needs a known draw sheet — there's nothing to "continue from" for a
+  // tournament whose knockout draw hasn't happened yet (e.g. Euro 2028 before
+  // UEFA's 2027 draw).
+  const bracketDefinition = BRACKET_DEFINITIONS[tournament.slug];
+  if (!bracketDefinition) {
+    Logging.info(
+      `Chances: "${tournament.slug}" has no known knockout draw sheet yet, skipping simulation.`
+    );
+    await mongoose.disconnect();
+    return;
+  }
 
   const teamDocs = await Team.find({tournamentId}).lean();
   const participantDocs = await Participant.find({tournamentId}).lean();
@@ -183,7 +210,11 @@ async function main() {
 
   // Continue from the ACTUAL knockout bracket: freeze finished ties, keep the
   // real drawn pairings, and only roll the fixtures still to come.
-  const bracket = buildBracket(teamDocs as any, allMatchDocs as any);
+  const bracket = buildBracket(teamDocs as any, allMatchDocs as any, {
+    tournamentSlug: tournament.slug,
+    knockoutStages: tournament.knockoutStages as Stage[],
+    thirdPlaceSlots: tournament.thirdPlaceSlots
+  });
   const actualKo = new Map<number, ActualKoResult>();
   for (const stage of bracket.stages) {
     for (const bm of stage.matches) {
@@ -217,7 +248,10 @@ async function main() {
   const {chances, paths} = computeChancesAndPaths(teams, participants, matches, {
     runs: RUNS,
     seed,
-    actualKo
+    actualKo,
+    bracketDefinition,
+    knockoutStages,
+    thirdPlaceSlots: tournament.thirdPlaceSlots
   });
 
   Logging.info(`Chances: simulation complete. Writing results:`);
@@ -247,7 +281,7 @@ async function main() {
   for (const {name} of results) {
     const path = paths[name];
     if (path) {
-      Logging.info(`  ${describeWinningPath(path, nameByApiId)}`);
+      Logging.info(`  ${describeWinningPath(path, nameByApiId, knockoutStages, tournament.name)}`);
     } else {
       Logging.info(
         `  For ${name} to win: no winning scenario turned up in ${RUNS.toLocaleString()} ` +
