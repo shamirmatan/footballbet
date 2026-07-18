@@ -6,10 +6,12 @@ import Logging from './library/Logging';
 import participantRoutes from './routes/Participant';
 import teamRoutes from './routes/Team';
 import tournamentRoutes from './routes/Tournament';
+import tournamentsListRoutes from './routes/Tournaments';
 import groupRoutes from './routes/Groups';
 import matchRoutes from './routes/Matches';
 import bracketRoutes from './routes/Bracket';
 import authRoutes from './routes/Auth';
+import resolveTournament from './middleware/resolveTournament';
 import {seedAdmins} from './config/firebase';
 import {startCronJobs} from './cron/scheduler';
 
@@ -58,12 +60,22 @@ const StartServer = () => {
   });
 
   /** Routes */
-  router.use('/api/participants', participantRoutes);
-  router.use('/api/teams', teamRoutes);
-  router.use('/api/tournament', tournamentRoutes);
-  router.use('/api/groups', groupRoutes);
-  router.use('/api/matches', matchRoutes);
-  router.use('/api/bracket', bracketRoutes);
+  // /api/tournaments (no slug) lists every tournament, for the UI switcher.
+  router.use('/api/tournaments', tournamentsListRoutes);
+
+  // Everything under /api/tournaments/:tournamentSlug/... is scoped to one
+  // tournament — resolveTournament loads it once and attaches it to the
+  // request so downstream controllers can filter by tournamentId.
+  const scoped = express.Router({mergeParams: true});
+  scoped.use(resolveTournament);
+  scoped.use('/participants', participantRoutes);
+  scoped.use('/teams', teamRoutes);
+  scoped.use('/state', tournamentRoutes);
+  scoped.use('/groups', groupRoutes);
+  scoped.use('/matches', matchRoutes);
+  scoped.use('/bracket', bracketRoutes);
+  router.use('/api/tournaments/:tournamentSlug', scoped);
+
   router.use('/api/auth', authRoutes);
 
   /** Error handling */

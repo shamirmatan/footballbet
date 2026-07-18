@@ -1,7 +1,9 @@
+import mongoose from 'mongoose';
 import Team, {ITeam} from '../models/Team';
 import Participant from '../models/Participant';
 import TournamentState, {IMatchSummary} from '../models/TournamentState';
 import Match from '../models/Match';
+import {ITournamentModel} from '../models/Tournament';
 import {FDCompetition, FDMatch, FDStandingGroup, FDStandingRow, FootballDataClient, Stage} from '../services/footballData';
 
 const STAGE_ORDER: Stage[] = [
@@ -445,14 +447,16 @@ export const aggregateTeams = (standings: FDStandingGroup[], matches: FDMatch[])
   return aggregates;
 };
 
-const upsertTeams = async (aggregates: TeamAggregate[]): Promise<number> => {
+const upsertTeams = async (tournamentId: mongoose.Types.ObjectId, aggregates: TeamAggregate[]): Promise<number> => {
   let upserted = 0;
   for (const agg of aggregates) {
     const points = computePoints(agg);
     await Team.updateOne(
-      {api_id: agg.api_id},
+      {tournamentId, api_id: agg.api_id},
       {
         $set: {
+          tournamentId,
+          api_id: agg.api_id,
           name: agg.name,
           logo: agg.logo,
           group: agg.group,
@@ -476,9 +480,9 @@ const upsertTeams = async (aggregates: TeamAggregate[]): Promise<number> => {
   return upserted;
 };
 
-const recomputeParticipantPoints = async (): Promise<number> => {
+const recomputeParticipantPoints = async (tournamentId: mongoose.Types.ObjectId): Promise<number> => {
   let updated = 0;
-  for await (const participant of Participant.find().populate('teams')) {
+  for await (const participant of Participant.find({tournamentId}).populate('teams')) {
     const teams = (participant.teams as unknown) as ITeam[];
     const sum = teams.reduce((acc, team) => acc + (team?.points ?? 0), 0);
     participant.set({points: sum});
@@ -555,24 +559,27 @@ const buildTournamentState = (
 };
 
 const upsertTournamentState = async (
+  tournamentId: mongoose.Types.ObjectId,
   competition: FDCompetition,
   matches: FDMatch[]
 ): Promise<void> => {
   const state = buildTournamentState(competition, matches);
   await TournamentState.updateOne(
-    {},
-    {$set: {...state, updatedAt: new Date()}},
+    {tournamentId},
+    {$set: {tournamentId, ...state, updatedAt: new Date()}},
     {upsert: true}
   );
 };
 
-const upsertMatches = async (matches: FDMatch[]): Promise<number> => {
+const upsertMatches = async (tournamentId: mongoose.Types.ObjectId, matches: FDMatch[]): Promise<number> => {
   let upserted = 0;
   for (const m of matches) {
     await Match.updateOne(
-      {api_id: m.id},
+      {tournamentId, api_id: m.id},
       {
         $set: {
+          tournamentId,
+          api_id: m.id,
           stage: m.stage,
           group: m.group,
           matchday: m.matchday ?? null,
@@ -667,10 +674,10 @@ const aggregateTotalsFromMatches = (matches: FDMatch[]): Map<number, TotalStats>
   return totals;
 };
 
-const writeTotalStats = async (totals: Map<number, TotalStats>): Promise<void> => {
+const writeTotalStats = async (tournamentId: mongoose.Types.ObjectId, totals: Map<number, TotalStats>): Promise<void> => {
   for (const [api_id, t] of totals.entries()) {
     await Team.updateOne(
-      {api_id},
+      {tournamentId, api_id},
       {
         $set: {
           totalGames: t.games,
@@ -694,8 +701,9 @@ export interface UpdateReport {
   tournamentStage: string;
 }
 
-export const runUpdate = async (): Promise<UpdateReport> => {
-  const client = new FootballDataClient();
+export const runUpdate = async (tournament: ITournamentModel): Promise<UpdateReport> => {
+  const tournamentId = tournament._id;
+  const client = new FootballDataClient(tournament.competitionCode);
   const [competition, standings, matches] = await Promise.all([
     client.getCompetition(),
     client.getStandings(),
@@ -703,11 +711,11 @@ export const runUpdate = async (): Promise<UpdateReport> => {
   ]);
 
   const aggregates = aggregateTeams(standings, matches);
-  const teamsUpserted = await upsertTeams(aggregates);
-  const matchesUpserted = await upsertMatches(matches);
-  await writeTotalStats(aggregateTotalsFromMatches(matches));
-  const participantsUpdated = await recomputeParticipantPoints();
-  await upsertTournamentState(competition, matches);
+  const teamsUpserted = await upsertTeams(tournamentId, aggregates);
+  const matchesUpserted = await upsertMatches(tournamentId, matches);
+  await writeTotalStats(tournamentId, aggregateTotalsFromMatches(matches));
+  const participantsUpdated = await recomputeParticipantPoints(tournamentId);
+  await upsertTournamentState(tournamentId, competition, matches);
   const championId = findChampionId(matches);
 
   return {

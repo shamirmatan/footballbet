@@ -1,9 +1,9 @@
 /**
  * Randomly assigns rank 5 & 6 (tier 5 & 6) teams to participants.
  *
- *   npx ts-node scripts/assignRanks56.ts             # dry-run (random preview)
- *   npx ts-node scripts/assignRanks56.ts --execute   # apply to MongoDB
- *   npx ts-node scripts/assignRanks56.ts --seed 42    # reproducible randomness
+ *   npx ts-node scripts/assignRanks56.ts --tournament euro26             # dry-run (random preview)
+ *   npx ts-node scripts/assignRanks56.ts --tournament euro26 --execute   # apply to MongoDB
+ *   npx ts-node scripts/assignRanks56.ts --tournament euro26 --seed 42    # reproducible randomness
  *
  * Ranks 1–4 are assumed already picked (each participant has 8 teams).
  * This script fills the remaining 4 teams per participant: exactly 2 from
@@ -22,6 +22,7 @@ import mongoose from 'mongoose';
 import {config} from '../src/config/config';
 import Team from '../src/models/Team';
 import Participant from '../src/models/Participant';
+import {resolveTournamentArg} from './lib/resolveTournamentArg';
 
 const RANKS_TO_FILL = [5, 6];
 const PER_RANK_PER_PARTICIPANT = 2;
@@ -102,8 +103,12 @@ async function main() {
   await mongoose.connect(config.mongo.url, {retryWrites: true, w: 'majority'});
   console.log(`Connected. seed=${seed}${seedIdx < 0 ? ' (random; pass --seed to reproduce)' : ''}`);
 
-  const teams = await Team.find().lean();
-  const participantsRaw = await Participant.find().populate('teams').lean();
+  const tournament = await resolveTournamentArg(process.argv);
+  const tournamentId = tournament._id;
+  console.log(`Tournament: ${tournament.slug} (${tournament.name})`);
+
+  const teams = await Team.find({tournamentId}).lean();
+  const participantsRaw = await Participant.find({tournamentId}).populate('teams').lean();
 
   const teamById = new Map<string, any>();
   for (const t of teams) teamById.set(String(t._id), t);
@@ -221,7 +226,7 @@ async function main() {
     const newIds = p.assigned.map((t) => t.id);
     const finalIds = [...p.existingTeamIds, ...newIds];
     await Participant.updateOne(
-      {lastName: p.lastName},
+      {tournamentId, lastName: p.lastName},
       {$set: {teams: finalIds}}
     );
     console.log(`  ${p.lastName}: +${newIds.length} teams (now ${finalIds.length})`);

@@ -4,6 +4,7 @@ import {Observable} from 'rxjs';
 import {map, shareReplay} from 'rxjs/operators';
 import {environment} from '../../environments/environment';
 import {Bracket, GroupStanding, Match, TournamentState} from './tournament.model';
+import {ActiveTournamentService} from './active-tournament.service';
 
 @Injectable({providedIn: 'root'})
 export class TournamentService {
@@ -13,15 +14,29 @@ export class TournamentService {
   private matches$?: Observable<Match[]>;
   private matchesFetchedAt = 0;
 
-  constructor(private http: HttpClient) {}
+  constructor(private http: HttpClient, private active: ActiveTournamentService) {
+    // The cached matches response belongs to whichever tournament was active
+    // when it was fetched — drop it the moment the tournament switches.
+    this.active.slug$.subscribe(() => {
+      this.matches$ = undefined;
+    });
+  }
+
+  private scopedUrl(path: string): string {
+    const slug = this.active.slug;
+    if (!slug) {
+      throw new Error('No active tournament selected');
+    }
+    return `${environment.apiUrl}/tournaments/${slug}/${path}`;
+  }
 
   getState(): Observable<TournamentState | null> {
-    return this.http.get<TournamentState | null>(`${environment.apiUrl}/tournament`);
+    return this.http.get<TournamentState | null>(this.scopedUrl('state'));
   }
 
   getGroups(): Observable<GroupStanding[]> {
     return this.http
-      .get<{groups: GroupStanding[]}>(`${environment.apiUrl}/groups`)
+      .get<{groups: GroupStanding[]}>(this.scopedUrl('groups'))
       .pipe(map((r) => r.groups));
   }
 
@@ -33,7 +48,7 @@ export class TournamentService {
     if (!this.matches$ || now - this.matchesFetchedAt > TournamentService.MATCHES_TTL_MS) {
       this.matchesFetchedAt = now;
       this.matches$ = this.http
-        .get<{matches: Match[]}>(`${environment.apiUrl}/matches`)
+        .get<{matches: Match[]}>(this.scopedUrl('matches'))
         .pipe(
           map((r) => r.matches),
           shareReplay({bufferSize: 1, refCount: false})
@@ -43,6 +58,6 @@ export class TournamentService {
   }
 
   getBracket(): Observable<Bracket> {
-    return this.http.get<Bracket>(`${environment.apiUrl}/bracket`);
+    return this.http.get<Bracket>(this.scopedUrl('bracket'));
   }
 }

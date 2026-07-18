@@ -1,6 +1,7 @@
 import mongoose, {Document, Schema} from 'mongoose';
 
 export interface ITeam {
+  tournamentId: mongoose.Types.ObjectId;
   api_id: number;
   name: string;
   group: string;
@@ -30,8 +31,9 @@ export interface ITeamModel extends ITeam, Document {
 
 const TeamSchema: Schema = new Schema(
   {
+    tournamentId: {type: Schema.Types.ObjectId, required: true, ref: 'Tournament', index: true},
     name: {type: String, required: true},
-    api_id: {type: Number, required: true, unique: true, index: true},
+    api_id: {type: Number, required: true},
     group: {type: String, required: true},
     position: {type: Number, required: true, default: 0},
     games: {type: Number, required: true, default: 0},
@@ -58,5 +60,9 @@ const TeamSchema: Schema = new Schema(
     strict: false,
   }
 );
+
+// A team's api_id is only unique within its own tournament — the same
+// football-data.org team id can (and will) recur across tournaments.
+TeamSchema.index({tournamentId: 1, api_id: 1}, {unique: true});
 
 export default mongoose.model<ITeamModel>('Team', TeamSchema);

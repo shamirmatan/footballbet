@@ -1,8 +1,44 @@
-<header class="site-header">
+<header class="site-header" *ngIf="activeMeta$ | async as activeMeta">
   <div class="site-header__inner">
     <div class="site-header__brand">
       <img class="site-header__ball" src="assets/trionda.png" onerror="this.onerror=null;this.src='assets/wc26-ball.svg'" alt="" aria-hidden="true" />
-      <span class="site-header__title">FIFA World Cup 2026</span>
+      <span class="site-header__title">{{ activeMeta.name }}</span>
+      <span
+        class="site-header__badge"
+        *ngIf="activeMeta.status !== 'live'"
+        [class.site-header__badge--archived]="activeMeta.status === 'archived'"
+      >{{ statusLabel(activeMeta.status) }}</span>
+    </div>
+
+    <div class="switcher" *ngIf="(tournaments$ | async) as tournaments">
+      <button
+        class="switcher__toggle"
+        type="button"
+        *ngIf="tournaments.length > 1"
+        (click)="toggleMenu()"
+        [attr.aria-expanded]="menuOpen"
+      >
+        {{ activeMeta.shortName }}
+        <span class="switcher__caret" [class.switcher__caret--open]="menuOpen">▾</span>
+      </button>
+
+      <ul class="switcher__menu" *ngIf="menuOpen">
+        <li *ngFor="let t of tournaments">
+          <a
+            [routerLink]="['/t', t.slug]"
+            (click)="closeMenu()"
+            class="switcher__item"
+            [class.switcher__item--active]="t.slug === activeMeta.slug"
+          >
+            <span>{{ t.shortName }}</span>
+            <span
+              class="switcher__badge"
+              [class.switcher__badge--live]="t.status === 'live'"
+              [class.switcher__badge--archived]="t.status === 'archived'"
+            >{{ statusLabel(t.status) }}</span>
+          </a>
+        </li>
+      </ul>
     </div>
   </div>
 </header>

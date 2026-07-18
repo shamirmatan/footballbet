@@ -14,6 +14,7 @@ export interface IMatchSummary {
 }
 
 export interface ITournamentState {
+  tournamentId: mongoose.Types.ObjectId;
   stage: string;
   currentMatchday: number | null;
   nextMatch: IMatchSummary | null;
@@ -44,6 +45,7 @@ const MatchSummarySchema: Schema = new Schema(
 
 const TournamentStateSchema: Schema = new Schema(
   {
+    tournamentId: {type: Schema.Types.ObjectId, required: true, ref: 'Tournament'},
     stage: {type: String, required: true},
     currentMatchday: {type: Number, default: null},
     nextMatch: {type: MatchSummarySchema, default: null},
@@ -54,5 +56,8 @@ const TournamentStateSchema: Schema = new Schema(
   },
   {versionKey: false}
 );
+
+// One live-state snapshot per tournament.
+TournamentStateSchema.index({tournamentId: 1}, {unique: true});
 
 export default mongoose.model<ITournamentStateModel>('TournamentState', TournamentStateSchema);

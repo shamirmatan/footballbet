@@ -1,10 +1,12 @@
 import {Component, ElementRef, OnDestroy, OnInit, ViewChild} from '@angular/core';
 import {Subscription} from 'rxjs';
+import {distinctUntilChanged, filter, skip} from 'rxjs/operators';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Bracket, BracketMatch} from '../tournament.model';
 import {AdaptivePoller} from '../../shared/adaptive-poller';
 import {TeamScheduleService} from '../../shared/team-schedule.service';
+import {ActiveTournamentService} from '../active-tournament.service';
 
 /**
  * Presentation-only bracket adjacency (FIFA match numbers).
@@ -108,12 +110,14 @@ export class BracketComponent implements OnInit, OnDestroy {
 
   private participants: Participant[] = [];
   private participantsSub?: Subscription;
+  private slugSub?: Subscription;
   private poller = new AdaptivePoller(() => this.refresh());
 
   constructor(
     private tournamentService: TournamentService,
     private participantsService: ParticipantsService,
-    private teamSchedule: TeamScheduleService
+    private teamSchedule: TeamScheduleService,
+    private active: ActiveTournamentService
   ) {}
 
   openTeam(name: string | null | undefined, logo?: string | null): void {
@@ -128,10 +132,21 @@ export class BracketComponent implements OnInit, OnDestroy {
       .getParticipantsUpdateListener()
       .subscribe((p) => (this.participants = p));
     this.participantsService.getParticipants();
+
+    // Nested under HomeComponent, which sets the active tournament from the
+    // route before this component's own ngOnInit runs — so poller.start()
+    // above already used the right slug. Force an immediate refresh only on
+    // a later switch (skip(1) skips that already-covered initial load).
+    this.slugSub = this.active.slug$.pipe(
+      filter((slug): slug is string => !!slug),
+      distinctUntilChanged(),
+      skip(1)
+    ).subscribe(() => this.refresh());
   }
 
   ngOnDestroy(): void {
     this.participantsSub?.unsubscribe();
+    this.slugSub?.unsubscribe();
     this.poller.destroy();
     this.visibilityObserver?.disconnect();
   }

@@ -1,9 +1,10 @@
-import {Request, Response} from 'express';
+import {Response} from 'express';
 import Team, {ITeam} from '../models/Team';
+import {TournamentRequest} from '../middleware/resolveTournament';
 
-export const getGroups = async (_req: Request, res: Response) => {
+export const getGroups = async (req: TournamentRequest, res: Response) => {
   try {
-    const teams = await Team.find().lean<ITeam[]>();
+    const teams = await Team.find({tournamentId: req.tournament!._id}).lean<ITeam[]>();
     const byGroup: Record<string, ITeam[]> = {};
     for (const team of teams) {
       const g = team.group || '?';

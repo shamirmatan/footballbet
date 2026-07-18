@@ -1,10 +1,12 @@
 import cron from 'node-cron';
 import Logging from '../library/Logging';
 import {runUpdate} from '../controllers/Update';
+import Tournament from '../models/Tournament';
 
-// Runs runUpdate() every minute. node-cron fires on schedule regardless of how
-// long the previous run took, so guard against overlapping executions — a slow
-// run must finish before the next one starts.
+// Runs runUpdate() every minute for every tournament currently marked 'live'.
+// node-cron fires on schedule regardless of how long the previous run took, so
+// guard against overlapping executions — a slow run must finish before the
+// next tick starts.
 let updateRunning = false;
 
 const runUpdateGuarded = async (): Promise<void> => {
@@ -14,10 +16,27 @@ const runUpdateGuarded = async (): Promise<void> => {
   }
   updateRunning = true;
   try {
-    const report = await runUpdate();
-    Logging.info(
-      `Cron: done. teams=${report.teamsUpserted} participants=${report.participantsUpdated} matches=${report.matchesProcessed} champion=${report.championId ?? 'none'}`
-    );
+    // With no tournament marked 'live' (e.g. between tournaments), this is a
+    // cheap no-op — no football-data.org calls are made and nothing is written.
+    const liveTournaments = await Tournament.find({status: 'live'});
+    if (liveTournaments.length === 0) {
+      Logging.info('Cron: no live tournament, nothing to update.');
+      return;
+    }
+    for (const tournament of liveTournaments) {
+      if (!tournament.competitionCode) {
+        Logging.warning(`Cron: tournament "${tournament.slug}" is live but has no competitionCode set, skipping.`);
+        continue;
+      }
+      try {
+        const report = await runUpdate(tournament);
+        Logging.info(
+          `Cron: done (${tournament.slug}). teams=${report.teamsUpserted} participants=${report.participantsUpdated} matches=${report.matchesProcessed} champion=${report.championId ?? 'none'}`
+        );
+      } catch (err) {
+        Logging.error(err);
+      }
+    }
   } catch (err) {
     Logging.error(err);
   } finally {

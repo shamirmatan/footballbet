@@ -11,6 +11,17 @@ export interface MatchSummary {
   scoreAway?: number | null;
 }
 
+export type TournamentStatus = 'upcoming' | 'live' | 'archived';
+
+export interface TournamentMeta {
+  slug: string;
+  name: string;
+  shortName: string;
+  status: TournamentStatus;
+  seasonStart: string;
+  seasonEnd: string;
+}
+
 export interface TournamentState {
   stage: string;
   currentMatchday: number | null;
@@ -19,6 +30,8 @@ export interface TournamentState {
   seasonStart: string;
   seasonEnd: string;
   updatedAt: string;
+  draftLocked: boolean;
+  tournament: TournamentMeta;
 }
 
 export interface GroupTeam {

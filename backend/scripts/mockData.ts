@@ -3,7 +3,7 @@
  * can be exercised: group stage finished, R32/R16 finished, QF in progress
  * (2 done, 1 live, 1 upcoming), SF/Final/3rd still scheduled.
  *
- * Run once: `npx ts-node scripts/mockData.ts`
+ * Run once: `npx ts-node scripts/mockData.ts --tournament euro26`
  * (Uses the same backend/.env credentials.)
  */
 
@@ -13,6 +13,7 @@ import Team, {ITeam} from '../src/models/Team';
 import Match, {IMatch} from '../src/models/Match';
 import Participant from '../src/models/Participant';
 import TournamentState from '../src/models/TournamentState';
+import {resolveTournamentArg} from './lib/resolveTournamentArg';
 
 // Deterministic RNG so reruns are reproducible
 let seed = 42;
@@ -191,8 +192,12 @@ async function main() {
   await mongoose.connect(config.mongo.url, {retryWrites: true, w: 'majority'});
   console.log('Connected.');
 
-  const teams = await Team.find().lean<ITeam[]>();
-  const matches = await Match.find().lean<IMatch[]>();
+  const tournament = await resolveTournamentArg(process.argv);
+  const tournamentId = tournament._id;
+  console.log(`Tournament: ${tournament.slug} (${tournament.name})`);
+
+  const teams = await Team.find({tournamentId}).lean<ITeam[]>();
+  const matches = await Match.find({tournamentId}).lean<IMatch[]>();
   if (teams.length !== 48) throw new Error(`expected 48 teams, got ${teams.length}`);
 
   const accs = new Map<number, TeamAccumulator>();
@@ -435,7 +440,7 @@ async function main() {
   // === Persist matches ===
   console.log(`Writing ${matchUpdates.length} match updates...`);
   for (const mu of matchUpdates) {
-    await Match.updateOne({api_id: mu.id}, {$set: mu.patch});
+    await Match.updateOne({tournamentId, api_id: mu.id}, {$set: mu.patch});
   }
 
   // === Persist teams ===
@@ -460,7 +465,7 @@ async function main() {
     const bonus = QUALIFICATION_BONUS[qualifications] ?? 0;
     const eliminated = !aliveNow.has(a.api_id);
     await Team.updateOne(
-      {api_id: a.api_id},
+      {tournamentId, api_id: a.api_id},
       {
         $set: {
           position: a.position,
@@ -487,7 +492,7 @@ async function main() {
 
   // === Recompute participant points ===
   console.log('Recomputing participant points...');
-  for await (const p of Participant.find().populate('teams')) {
+  for await (const p of Participant.find({tournamentId}).populate('teams')) {
     const teams = (p.teams as unknown) as ITeam[];
     const sum = teams.reduce((acc, t) => acc + (t?.points ?? 0), 0);
     p.set({points: sum});
@@ -495,15 +500,17 @@ async function main() {
   }
 
   // === Update TournamentState ===
-  const liveMatch = await Match.findOne({stage: 'QUARTER_FINALS', status: 'IN_PLAY'}).lean();
+  const liveMatch = await Match.findOne({tournamentId, stage: 'QUARTER_FINALS', status: 'IN_PLAY'}).lean();
   const nextMatch = await Match.findOne({
+    tournamentId,
     stage: 'QUARTER_FINALS',
     status: 'TIMED'
   }).sort({utcDate: 1}).lean();
   await TournamentState.updateOne(
-    {},
+    {tournamentId},
     {
       $set: {
+        tournamentId,
         stage: 'QUARTER_FINALS',
         liveMatch: liveMatch
           ? {

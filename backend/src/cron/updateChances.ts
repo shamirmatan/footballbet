@@ -4,6 +4,7 @@ import Logging from '../library/Logging';
 import Team from '../models/Team';
 import Participant from '../models/Participant';
 import Match from '../models/Match';
+import Tournament from '../models/Tournament';
 import {
   SimTeam,
   SimMatch,
@@ -83,10 +84,20 @@ async function main() {
   await mongoose.connect(config.mongo.url, {retryWrites: true, w: 'majority'});
   Logging.info('Chances: connected to Mongo.');
 
-  const teamDocs = await Team.find().lean();
-  const participantDocs = await Participant.find().lean();
-  const matchDocs = await Match.find({stage: 'GROUP_STAGE'}).lean();
-  const allMatchDocs = await Match.find().lean();
+  // Between tournaments (e.g. no live tournament right now) this is a no-op —
+  // there is nothing to simulate.
+  const tournament = await Tournament.findOne({status: 'live'});
+  if (!tournament) {
+    Logging.info('Chances: no live tournament, nothing to simulate.');
+    await mongoose.disconnect();
+    return;
+  }
+  const tournamentId = tournament._id;
+
+  const teamDocs = await Team.find({tournamentId}).lean();
+  const participantDocs = await Participant.find({tournamentId}).lean();
+  const matchDocs = await Match.find({tournamentId, stage: 'GROUP_STAGE'}).lean();
+  const allMatchDocs = await Match.find({tournamentId}).lean();
 
   // ── Data summary ────────────────────────────────────────────────────────────
 

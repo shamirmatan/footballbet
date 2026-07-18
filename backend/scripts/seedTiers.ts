@@ -1,13 +1,14 @@
 /**
  * Seeds the `tier` field on every Team document.
  *
- *   npx ts-node scripts/seedTiers.ts              # dry-run
- *   npx ts-node scripts/seedTiers.ts --execute     # apply
+ *   npx ts-node scripts/seedTiers.ts --tournament euro26              # dry-run
+ *   npx ts-node scripts/seedTiers.ts --tournament euro26 --execute     # apply
  */
 
 import mongoose from 'mongoose';
 import {config} from '../src/config/config';
 import Team from '../src/models/Team';
+import {resolveTournamentArg} from './lib/resolveTournamentArg';
 
 const TIERS: Record<number, string[]> = {
   1: ['Argentina', 'Spain', 'France', 'Brazil', 'England', 'Portugal', 'Germany', 'Netherlands'],
@@ -24,7 +25,11 @@ async function main() {
   await mongoose.connect(config.mongo.url, {retryWrites: true, w: 'majority'});
   console.log('Connected.');
 
-  const teams = await Team.find().lean();
+  const tournament = await resolveTournamentArg(process.argv);
+  const tournamentId = tournament._id;
+  console.log(`Tournament: ${tournament.slug} (${tournament.name})`);
+
+  const teams = await Team.find({tournamentId}).lean();
   const teamByName = new Map(teams.map(t => [t.name.toLowerCase(), t]));
 
   const updates: {name: string; tier: number}[] = [];
@@ -59,7 +64,7 @@ async function main() {
 
   console.log('\nApplying...');
   for (const {name, tier} of updates) {
-    await Team.updateOne({name}, {$set: {tier}});
+    await Team.updateOne({tournamentId, name}, {$set: {tier}});
   }
   console.log(`Updated ${updates.length} teams.`);
 

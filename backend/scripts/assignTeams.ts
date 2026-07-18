@@ -2,9 +2,9 @@
  * Assigns teams to each participant from a config file. Use after a reset
  * (scripts/resetTournament.ts) when the real picks have been made.
  *
- *   npx ts-node scripts/assignTeams.ts                 # dry-run
- *   npx ts-node scripts/assignTeams.ts --execute       # apply
- *   npx ts-node scripts/assignTeams.ts --config my.json
+ *   npx ts-node scripts/assignTeams.ts --tournament euro26                 # dry-run
+ *   npx ts-node scripts/assignTeams.ts --tournament euro26 --execute       # apply
+ *   npx ts-node scripts/assignTeams.ts --tournament euro26 --config my.json
  *
  * Config file (JSON). Keys are participant lastNames; values are lists of
  * team names (must match Team.name exactly — run the script once dry to
@@ -29,6 +29,7 @@ import mongoose from 'mongoose';
 import {config} from '../src/config/config';
 import Team from '../src/models/Team';
 import Participant from '../src/models/Participant';
+import {resolveTournamentArg} from './lib/resolveTournamentArg';
 
 const DEFAULT_CONFIG = 'scripts/assignments.json';
 const TEAMS_PER_PARTICIPANT = 12;
@@ -55,8 +56,12 @@ async function main() {
   await mongoose.connect(config.mongo.url, {retryWrites: true, w: 'majority'});
   console.log(`Connected. Config: ${absConfig}`);
 
-  const teams = await Team.find().lean();
-  const participants = await Participant.find().lean();
+  const tournament = await resolveTournamentArg(process.argv);
+  const tournamentId = tournament._id;
+  console.log(`Tournament: ${tournament.slug} (${tournament.name})`);
+
+  const teams = await Team.find({tournamentId}).lean();
+  const participants = await Participant.find({tournamentId}).lean();
   const teamByName = new Map<string, any>();
   for (const t of teams) teamByName.set(t.name.toLowerCase(), t);
 

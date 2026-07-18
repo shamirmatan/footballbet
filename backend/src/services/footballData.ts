@@ -85,11 +85,16 @@ export class FootballDataClient {
   private http: AxiosInstance;
   private competition: string;
 
-  constructor() {
+  // competitionCode is per-tournament (e.g. "WC" for wc26) — the API key and
+  // base URL are the only pieces shared globally across tournaments.
+  constructor(competitionCode: string) {
     if (!config.footballData.apiKey) {
       throw new Error('FOOTBALL_DATA_API_KEY is not set');
     }
-    this.competition = config.footballData.competition;
+    if (!competitionCode) {
+      throw new Error('competitionCode is not set for this tournament');
+    }
+    this.competition = competitionCode;
     this.http = axios.create({
       baseURL: config.footballData.baseUrl,
       headers: {'X-Auth-Token': config.footballData.apiKey},

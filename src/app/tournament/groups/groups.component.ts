@@ -1,8 +1,10 @@
-import {Component, OnInit} from '@angular/core';
-import {forkJoin} from 'rxjs';
+import {Component, OnDestroy, OnInit} from '@angular/core';
+import {forkJoin, Subscription} from 'rxjs';
+import {distinctUntilChanged, filter} from 'rxjs/operators';
 import {TournamentService} from '../tournament.service';
 import {GroupStanding, GroupTeam, Match} from '../tournament.model';
 import {TeamScheduleService} from '../../shared/team-schedule.service';
+import {ActiveTournamentService} from '../active-tournament.service';
 
 interface GroupMatchday {
   matchday: number;
@@ -20,14 +22,16 @@ type GroupTab = 'standings' | 'fixtures';
   templateUrl: './groups.component.html',
   styleUrls: ['./groups.component.css']
 })
-export class GroupsComponent implements OnInit {
+export class GroupsComponent implements OnInit, OnDestroy {
   groups: GroupView[] = [];
   loading = true;
   activeTab: Record<string, GroupTab> = {};
+  private slugSub?: Subscription;
 
   constructor(
     private tournamentService: TournamentService,
-    private teamSchedule: TeamScheduleService
+    private teamSchedule: TeamScheduleService,
+    private active: ActiveTournamentService
   ) {}
 
   openTeam(name: string | null | undefined, logo?: string | null): void {
@@ -35,6 +39,20 @@ export class GroupsComponent implements OnInit {
   }
 
   ngOnInit(): void {
+    // Re-load whenever the active tournament changes (covers both the
+    // initial load and a later switch) instead of a one-shot fetch.
+    this.slugSub = this.active.slug$.pipe(
+      filter((slug): slug is string => !!slug),
+      distinctUntilChanged()
+    ).subscribe(() => this.load());
+  }
+
+  ngOnDestroy(): void {
+    this.slugSub?.unsubscribe();
+  }
+
+  private load(): void {
+    this.loading = true;
     forkJoin({
       groups: this.tournamentService.getGroups(),
       matches: this.tournamentService.getMatches()
@@ -44,6 +62,7 @@ export class GroupsComponent implements OnInit {
           ...g,
           fixtures: this.buildFixtures(g.group, matches)
         }));
+        this.activeTab = {};
         for (const g of this.groups) {
           this.activeTab[g.group] = 'standings';
         }

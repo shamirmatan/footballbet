@@ -1,6 +1,7 @@
-import {Request, Response} from 'express';
+import {Response} from 'express';
 import mongoose from 'mongoose';
 import Team from '../models/Team';
+import {TournamentRequest} from '../middleware/resolveTournament';
 
 const toTitleCase = (phrase: string) => {
   return phrase
@@ -9,10 +10,11 @@ const toTitleCase = (phrase: string) => {
     .map(word => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 };
-const createTeam = (req: Request, res: Response) => {
+const createTeam = (req: TournamentRequest, res: Response) => {
   const {logo, name, api_id} = req.body;
   const team = new Team({
     _id: new mongoose.Types.ObjectId(),
+    tournamentId: req.tournament!._id,
     name: name,
     api_id: api_id,
     games: 0,
@@ -30,24 +32,24 @@ const createTeam = (req: Request, res: Response) => {
     .catch((error) => res.status(500).json({error}));
 };
 
-const readTeam = (req: Request, res: Response) => {
+const readTeam = (req: TournamentRequest, res: Response) => {
   const teamName = toTitleCase(req.params.teamName);
 
-  return Team.findOne({name: teamName})
+  return Team.findOne({name: teamName, tournamentId: req.tournament!._id})
     .then((team) => (team ? res.status(200).json({team}) : res.status(404).json({message: 'not found'})))
     .catch((error) => res.status(500).json({error}));
 };
 
-const readAll = (req: Request, res: Response) => {
-  return Team.find()
+const readAll = (req: TournamentRequest, res: Response) => {
+  return Team.find({tournamentId: req.tournament!._id})
     .then((teams) => res.status(200).json({teams}))
     .catch((error) => res.status(500).json({error}));
 };
 
-const updateTeam = (req: Request, res: Response) => {
+const updateTeam = (req: TournamentRequest, res: Response) => {
   const teamName = toTitleCase(req.params.teamName);
 
-  return Team.findOne({name: teamName})
+  return Team.findOne({name: teamName, tournamentId: req.tournament!._id})
     .then((team) => {
       if (team) {
         team.set(req.body);
@@ -64,10 +66,10 @@ const updateTeam = (req: Request, res: Response) => {
 };
 
 
-const updateTeamById = (req: Request, res: Response) => {
+const updateTeamById = (req: TournamentRequest, res: Response) => {
   const teamId = req.params.teamId;
 
-  return Team.findById(teamId)
+  return Team.findOne({_id: teamId, tournamentId: req.tournament!._id})
     .then((team) => {
       if (team) {
         team.set(req.body);

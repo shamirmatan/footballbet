@@ -1,10 +1,12 @@
 import {Component, OnDestroy, OnInit} from '@angular/core';
 import {Subscription} from 'rxjs';
+import {distinctUntilChanged, filter} from 'rxjs/operators';
 import {ParticipantsService} from '../../participants/participants.service';
 import {TournamentService} from '../tournament.service';
 import {Match, MatchSummary, TournamentState} from '../tournament.model';
 import {AdaptivePoller} from '../../shared/adaptive-poller';
 import {TeamScheduleService} from '../../shared/team-schedule.service';
+import {ActiveTournamentService} from '../active-tournament.service';
 
 const STAGE_LABELS: Record<string, string> = {
   GROUP_STAGE: 'Group Stage',
@@ -42,13 +44,15 @@ export class HeroComponent implements OnInit, OnDestroy {
   allMatches: Match[] = [];
   private participants: Participant[] = [];
   private participantsSub?: Subscription;
+  private slugSub?: Subscription;
   private poller = new AdaptivePoller(() => this.refresh());
   private timer?: number;
 
   constructor(
     private tournamentService: TournamentService,
     private participantsService: ParticipantsService,
-    private teamSchedule: TeamScheduleService
+    private teamSchedule: TeamScheduleService,
+    private active: ActiveTournamentService
   ) {}
 
   openTeam(name: string | null | undefined, logo?: string | null): void {
@@ -56,19 +60,35 @@ export class HeroComponent implements OnInit, OnDestroy {
   }
 
   ngOnInit(): void {
-    // Refresh state + matches immediately, then adaptively (fast while a match
-    // is live, slow otherwise; paused when the tab is hidden).
-    this.poller.start();
     this.participantsSub = this.participantsService
       .getParticipantsUpdateListener()
       .subscribe((p) => (this.participants = p));
     this.participantsService.getParticipants();
     this.timer = window.setInterval(() => this.recomputeCountdown(), 60_000);
+
+    // Hero lives outside <router-outlet> (see app.component.html), so unlike
+    // Groups/Bracket it can mount before HomeComponent has set the active
+    // tournament from the route — wait for the first real slug before
+    // starting the poller (which fires an immediate refresh + adaptive
+    // schedule), then force an immediate refresh on every later switch.
+    let started = false;
+    this.slugSub = this.active.slug$.pipe(
+      filter((slug): slug is string => !!slug),
+      distinctUntilChanged()
+    ).subscribe(() => {
+      if (!started) {
+        started = true;
+        this.poller.start();
+      } else {
+        this.refresh();
+      }
+    });
   }
 
   ngOnDestroy(): void {
     if (this.timer) window.clearInterval(this.timer);
     this.participantsSub?.unsubscribe();
+    this.slugSub?.unsubscribe();
     this.poller.destroy();
   }
 

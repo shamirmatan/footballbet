@@ -7,6 +7,7 @@ export interface IMatchTeam {
 }
 
 export interface IMatch {
+  tournamentId: mongoose.Types.ObjectId;
   api_id: number;
   stage: string;
   group: string | null;
@@ -39,7 +40,8 @@ const MatchTeamSchema: Schema = new Schema(
 
 const MatchSchema: Schema = new Schema(
   {
-    api_id: {type: Number, required: true, unique: true, index: true},
+    tournamentId: {type: Schema.Types.ObjectId, required: true, ref: 'Tournament', index: true},
+    api_id: {type: Number, required: true},
     stage: {type: String, required: true, index: true},
     group: {type: String, default: null},
     matchday: {type: Number, default: null},
@@ -58,5 +60,8 @@ const MatchSchema: Schema = new Schema(
     versionKey: false
   }
 );
+
+// A match's api_id is only unique within its own tournament.
+MatchSchema.index({tournamentId: 1, api_id: 1}, {unique: true});
 
 export default mongoose.model<IMatchModel>('Match', MatchSchema);

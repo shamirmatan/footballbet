@@ -1,10 +1,12 @@
 import {Component, OnInit, OnDestroy, Input} from '@angular/core';
 import {HttpClient, HttpHeaders} from '@angular/common/http';
+import {ActivatedRoute} from '@angular/router';
 import {MatSnackBar} from '@angular/material/snack-bar';
 import {forkJoin, Subscription, interval} from 'rxjs';
 import {switchMap, filter, take} from 'rxjs/operators';
 import {environment} from '../../environments/environment';
 import {AuthService} from '../services/auth.service';
+import {ActiveTournamentService} from '../tournament/active-tournament.service';
 
 interface TeamFromApi {
   _id: string;
@@ -59,23 +61,34 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   private readonly STORAGE_KEY = 'team-picker-assignments';
   private reverseTeamMap: Record<string, string> = {};
   private pollSub: Subscription | null = null;
+  private routeSub: Subscription | null = null;
   private saveTimeout: any = null;
+  private tournamentSlug: string | null = null;
+
+  private get tournamentUrl(): string {
+    return `${this.API_URL}/tournaments/${this.tournamentSlug}`;
+  }
 
   constructor(
     private http: HttpClient,
+    private route: ActivatedRoute,
+    private active: ActiveTournamentService,
     private snackBar: MatSnackBar,
     public authService: AuthService
   ) {}
 
   ngOnInit() {
-    this.authService.ready$.pipe(
-      filter(ready => ready),
-      take(1)
-    ).subscribe(() => {
-      this.authService.isAdmin$.pipe(take(1)).subscribe(isAdmin => {
-        this.isAdmin = isAdmin;
-        this.loadData();
-      });
+    // Shares the ActivatedRoute of whichever routed ancestor rendered this
+    // component — HomeComponent when embedded (viewerOnly) in the Draft tab,
+    // or this component's own route when linked directly at /pick-teams.
+    this.routeSub = this.route.paramMap.subscribe((params) => {
+      const slug = params.get('tournamentSlug');
+      this.active.setSlug(slug);
+      if (slug && slug !== this.tournamentSlug) {
+        this.tournamentSlug = slug;
+        this.pollSub?.unsubscribe();
+        this.loadForTournament();
+      }
     });
 
     this.authService.isAdmin$.subscribe(isAdmin => {
@@ -88,7 +101,20 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     });
   }
 
+  private loadForTournament() {
+    this.authService.ready$.pipe(
+      filter(ready => ready),
+      take(1)
+    ).subscribe(() => {
+      this.authService.isAdmin$.pipe(take(1)).subscribe(isAdmin => {
+        this.isAdmin = isAdmin;
+        this.loadData();
+      });
+    });
+  }
+
   ngOnDestroy() {
+    this.routeSub?.unsubscribe();
     this.pollSub?.unsubscribe();
     if (this.saveTimeout) clearTimeout(this.saveTimeout);
   }
@@ -112,9 +138,9 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
 
   private loadData() {
     forkJoin({
-      participantsRes: this.http.get<{participants: ParticipantFromApi[]}>(`${this.API_URL}/participants`),
-      teamsRes: this.http.get<{teams: TeamFromApi[]}>(`${this.API_URL}/teams`),
-      tournamentRes: this.http.get<{draftLocked?: boolean}>(`${this.API_URL}/tournament`)
+      participantsRes: this.http.get<{participants: ParticipantFromApi[]}>(`${this.tournamentUrl}/participants`),
+      teamsRes: this.http.get<{teams: TeamFromApi[]}>(`${this.tournamentUrl}/teams`),
+      tournamentRes: this.http.get<{draftLocked?: boolean}>(`${this.tournamentUrl}/state`)
     }).subscribe({
       next: ({participantsRes, teamsRes, tournamentRes}) => {
         this.draftLocked = tournamentRes?.draftLocked ?? false;
@@ -156,7 +182,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   private startPolling() {
     const pollInterval = this.canEdit ? 10000 : 500;
     this.pollSub = interval(pollInterval).pipe(
-      switchMap(() => this.http.get<{participants: ParticipantFromApi[]}>(`${this.API_URL}/participants`))
+      switchMap(() => this.http.get<{participants: ParticipantFromApi[]}>(`${this.tournamentUrl}/participants`))
     ).subscribe(res => {
       if (!this.isSaving) {
         this.rebuildAssignmentsFromParticipants(res.participants);
@@ -223,7 +249,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
 
       const updates = this.participants.map(p =>
         this.http.patch(
-          `${this.API_URL}/participants/update/${p.lastName}`,
+          `${this.tournamentUrl}/participants/update/${p.lastName}`,
           {teams: participantTeamIds[p.lastName]},
           this.authHeaders()
         )
@@ -294,7 +320,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
 
     const updates = this.participants.map(p =>
       this.http.patch(
-        `${this.API_URL}/participants/update/${p.lastName}`,
+        `${this.tournamentUrl}/participants/update/${p.lastName}`,
         {teams: participantTeamIds[p.lastName]},
         this.authHeaders()
       )

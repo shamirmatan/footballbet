@@ -1,13 +1,13 @@
 /**
- * Resets the DB to a clean pre-tournament state: zeroed team stats,
- * all matches set to TIMED with null scores, knockout match team slots
+ * Resets one tournament's data to a clean pre-tournament state: zeroed team
+ * stats, all matches set to TIMED with null scores, knockout match team slots
  * cleared (group-stage slots are preserved — the draw is fixed), and
  * participant teams + points wiped.
  *
  * Intended to undo any mock data before the real tournament starts.
  *
- *   npx ts-node scripts/resetTournament.ts           # dry-run
- *   npx ts-node scripts/resetTournament.ts --execute # apply
+ *   npx ts-node scripts/resetTournament.ts --tournament euro26           # dry-run
+ *   npx ts-node scripts/resetTournament.ts --tournament euro26 --execute # apply
  */
 
 import mongoose from 'mongoose';
@@ -16,6 +16,7 @@ import Team from '../src/models/Team';
 import Match from '../src/models/Match';
 import Participant from '../src/models/Participant';
 import TournamentState from '../src/models/TournamentState';
+import {resolveTournamentArg} from './lib/resolveTournamentArg';
 
 const execute = process.argv.includes('--execute');
 
@@ -23,9 +24,13 @@ async function main() {
   await mongoose.connect(config.mongo.url, {retryWrites: true, w: 'majority'});
   console.log('Connected.');
 
-  const teams = await Team.find().lean();
-  const matches = await Match.find().lean();
-  const participants = await Participant.find().lean();
+  const tournament = await resolveTournamentArg(process.argv);
+  const tournamentId = tournament._id;
+  console.log(`Tournament: ${tournament.slug} (${tournament.name})`);
+
+  const teams = await Team.find({tournamentId}).lean();
+  const matches = await Match.find({tournamentId}).lean();
+  const participants = await Participant.find({tournamentId}).lean();
 
   const groupMatches = matches.filter((m) => m.stage === 'GROUP_STAGE');
   const knockoutMatches = matches.filter((m) => m.stage !== 'GROUP_STAGE');
@@ -50,7 +55,7 @@ async function main() {
 
   console.log('\nApplying...');
   const teamReset = await Team.updateMany(
-    {},
+    {tournamentId},
     {
       $set: {
         position: 0,
@@ -76,7 +81,7 @@ async function main() {
   console.log(`  Teams reset:        ${teamReset.modifiedCount}`);
 
   const groupReset = await Match.updateMany(
-    {stage: 'GROUP_STAGE'},
+    {tournamentId, stage: 'GROUP_STAGE'},
     {
       $set: {
         status: 'TIMED',
@@ -90,7 +95,7 @@ async function main() {
   console.log(`  Group matches:      ${groupReset.modifiedCount}`);
 
   const knockoutReset = await Match.updateMany(
-    {stage: {$ne: 'GROUP_STAGE'}},
+    {tournamentId, stage: {$ne: 'GROUP_STAGE'}},
     {
       $set: {
         status: 'TIMED',
@@ -106,12 +111,12 @@ async function main() {
   console.log(`  Knockout matches:   ${knockoutReset.modifiedCount}`);
 
   const participantReset = await Participant.updateMany(
-    {},
+    {tournamentId},
     {$set: {teams: [], points: 0}}
   );
   console.log(`  Participants:       ${participantReset.modifiedCount}`);
 
-  const stateWipe = await TournamentState.deleteMany({});
+  const stateWipe = await TournamentState.deleteMany({tournamentId});
   console.log(`  TournamentState:    ${stateWipe.deletedCount} deleted`);
 
   console.log('\nDone. Start the server to repopulate TournamentState (cron runs every minute):');
