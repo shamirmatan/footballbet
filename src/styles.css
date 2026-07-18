@@ -51,6 +51,42 @@
   --radius-pill: 999px;
 }
 
+/* UEFA Euro 2028 palette, read off the official tournament logo (deep
+   indigo "UEFA"/"28"/"UK & IRELAND" wordmark, vivid magenta "EURO", sky-blue
+   "2", emerald "8", silver Henri Delaunay trophy). Applied via a body class
+   toggled by AppComponent whenever euro28 is the active tournament — every
+   component already themes off these same custom-property names, so no
+   other CSS changes were needed. Approximate reads from the logo image, not
+   pixel-verified official swatches — nudge freely if UEFA's brand kit ever
+   surfaces exact values. */
+body.theme-euro28 {
+  --color-navy-900: #241463; /* deep indigo */
+  --color-navy-800: #2f1b86;
+  --color-navy-700: #4b2fb0; /* lighter indigo, header gradient endpoint */
+
+  --color-red-600: #e8106c; /* vivid magenta ("EURO") — primary accent slot */
+  --color-blue-700: #1d3fa0;
+  --color-blue-500: #1aa6e0; /* sky blue ("2") */
+  --color-purple-500: #6c4fe0;
+  --color-pitch-700: #00794f; /* emerald ("8"), darkened for text-on-light */
+  --color-pitch-600: #009e6a;
+  --color-pitch-500: #00bc7d;
+
+  /* The Henri Delaunay trophy is silver, not gold. */
+  --color-gold-500: #c7ccd6;
+  --color-gold-600: #9aa1ae;
+
+  --color-cobalt: #1aa6e0;
+  --color-cyan: #4fd1e0;
+  --color-coral: #f0479a; /* rose, kept in the magenta family rather than an unrelated hue */
+
+  --gradient-fifa:
+    radial-gradient(125% 120% at 100% 0%, var(--color-cyan) 0 30%, rgba(79, 209, 224, 0) 30.4%),
+    radial-gradient(60% 70% at 100% 100%, var(--color-coral) 0 26%, rgba(240, 71, 154, 0) 26.4%),
+    radial-gradient(85% 95% at 108% 112%, var(--color-red-600) 0 30%, rgba(232, 16, 108, 0) 30.4%),
+    linear-gradient(135deg, var(--color-cobalt) 0%, #14357a 100%);
+}
+
 html, body {
   height: 100%;
 }
