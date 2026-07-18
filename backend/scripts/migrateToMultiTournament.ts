@@ -5,7 +5,9 @@
  * WC26 tournament).
  *
  * Creates two Tournament docs:
- *   - wc26:   status "archived" (frozen — no more live cron updates),
+ *   - wc26:   status "live" (cron keeps polling football-data.org until the
+ *             final is played — flip to "archived" afterwards, e.g. via
+ *             `npx ts-node scripts/manageTournament.ts --tournament wc26 --status archived --execute`),
  *             competitionCode "WC", draft locked.
  *   - euro26: status "upcoming", empty competitionCode (set later once
  *             football-data.org exposes it), draft locked, no data yet.
@@ -36,7 +38,7 @@ const WC26 = {
   name: 'FIFA World Cup 2026',
   shortName: 'WC 2026',
   competitionCode: 'WC',
-  status: 'archived' as const,
+  status: 'live' as const,
   draftLocked: true,
   sortOrder: 1
 };
@@ -65,7 +67,7 @@ async function main() {
   const existingEuro26 = await Tournament.findOne({slug: EURO26.slug}).lean();
 
   console.log('\nWill migrate:');
-  console.log(`  Tournament "wc26":   ${existingWc26 ? 'already exists, left as-is' : 'will be created (archived)'}`);
+  console.log(`  Tournament "wc26":   ${existingWc26 ? 'already exists, left as-is' : 'will be created (live)'}`);
   console.log(`  Tournament "euro26": ${existingEuro26 ? 'already exists, left as-is' : 'will be created (upcoming, empty)'}`);
   console.log(`  Teams to backfill:        ${unmigratedTeams}`);
   console.log(`  Matches to backfill:      ${unmigratedMatches}`);
@@ -129,7 +131,7 @@ async function main() {
   await Tournament.syncIndexes();
   console.log('  Synced indexes.');
 
-  console.log('\nDone. wc26 is archived (no cron updates); euro26 is upcoming and empty.');
+  console.log('\nDone. wc26 is live (cron keeps updating it until you archive it); euro26 is upcoming and empty.');
   console.log('Set euro26.competitionCode and flip its status to "live" once its data source is ready.');
 
   await mongoose.disconnect();
