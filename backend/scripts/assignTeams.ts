@@ -20,7 +20,8 @@
  * Validation:
  *   - Every team name referenced must exist in the Team collection
  *   - Every team must appear exactly once across all participants
- *   - Each participant must get exactly 12 teams
+ *   - Each participant must get an equal share of this tournament's teams
+ *     (e.g. 12 for WC26's 48 teams / 4 participants, 6 for a 24-team Euro)
  */
 
 import * as fs from 'fs';
@@ -32,7 +33,6 @@ import Participant from '../src/models/Participant';
 import {resolveTournamentArg} from './lib/resolveTournamentArg';
 
 const DEFAULT_CONFIG = 'scripts/assignments.json';
-const TEAMS_PER_PARTICIPANT = 12;
 
 const args = process.argv.slice(2);
 const execute = args.includes('--execute');
@@ -65,6 +65,16 @@ async function main() {
   const teamByName = new Map<string, any>();
   for (const t of teams) teamByName.set(t.name.toLowerCase(), t);
 
+  const teamsPerParticipant = participants.length ? teams.length / participants.length : 0;
+  if (!Number.isInteger(teamsPerParticipant)) {
+    console.error(
+      `${teams.length} teams don't split evenly across ${participants.length} participants ` +
+      `(${teamsPerParticipant} each) — fix the team/participant counts before assigning.`
+    );
+    await mongoose.disconnect();
+    process.exit(1);
+  }
+
   // --- validate ---
   const errors: string[] = [];
   const assignedTeamNames: string[] = [];
@@ -75,8 +85,8 @@ async function main() {
       errors.push(`No participant with lastName="${lastName}"`);
       continue;
     }
-    if (list.length !== TEAMS_PER_PARTICIPANT) {
-      errors.push(`"${lastName}" has ${list.length} teams, expected ${TEAMS_PER_PARTICIPANT}`);
+    if (list.length !== teamsPerParticipant) {
+      errors.push(`"${lastName}" has ${list.length} teams, expected ${teamsPerParticipant}`);
     }
     for (const teamName of list) {
       if (!teamByName.has(teamName.toLowerCase())) {
