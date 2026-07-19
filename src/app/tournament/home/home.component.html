@@ -1,6 +1,9 @@
 <div class="page" [class.page--wide]="isDraftTab">
   <mat-tab-group class="home-tabs" mat-stretch-tabs="true" dynamicHeight
-                 (selectedTabChange)="isDraftTab = $event.index === 3">
+                 [(selectedIndex)]="selectedIndex"
+                 (selectedTabChange)="isDraftTab = $event.index === 3"
+                 (touchstart)="onTouchStart($event)"
+                 (touchend)="onTouchEnd($event)">
     <mat-tab>
       <ng-template mat-tab-label>
         <mat-icon class="tab-icon">leaderboard</mat-icon>
