@@ -21,22 +21,24 @@
       </div>
     </mat-tab>
 
-    <!-- Group stage is over: keep it reachable but visually de-emphasised. -->
+    <!-- Only de-emphasised once the group stage has actually given way to
+         the knockout rounds (or the tournament is over) — still front and
+         centre before then, e.g. for a tournament that hasn't kicked off. -->
     <mat-tab>
       <ng-template mat-tab-label>
-        <mat-icon class="tab-icon tab-icon--muted">grid_view</mat-icon>
-        <span class="tab-label tab-label--muted">Groups</span>
+        <mat-icon class="tab-icon" [class.tab-icon--muted]="groupsOver">grid_view</mat-icon>
+        <span class="tab-label" [class.tab-label--muted]="groupsOver">Groups</span>
       </ng-template>
       <div class="tab-panel">
         <app-groups></app-groups>
       </div>
     </mat-tab>
 
-    <!-- Draft is locked once the tournament starts: reachable but faded. -->
+    <!-- Only de-emphasised once the draft is actually locked. -->
     <mat-tab>
       <ng-template mat-tab-label>
-        <mat-icon class="tab-icon tab-icon--muted">how_to_reg</mat-icon>
-        <span class="tab-label tab-label--muted">Draft</span>
+        <mat-icon class="tab-icon" [class.tab-icon--muted]="draftLocked">how_to_reg</mat-icon>
+        <span class="tab-label" [class.tab-label--muted]="draftLocked">Draft</span>
       </ng-template>
       <div class="tab-panel">
         <app-team-picker [viewerOnly]="true"></app-team-picker>
