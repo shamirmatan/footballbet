@@ -56,6 +56,16 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     return this.isAdmin && !this.draftLocked;
   }
 
+  /** Total draftable teams (tiered) for this tournament — 48 for WC26, 24 for Euro28, etc. */
+  get totalTeamsCount(): number {
+    return Object.keys(this.teamsByName).length;
+  }
+
+  /** Even split of the draftable teams across participants (e.g. 12 for WC26's 48/4, 6 for Euro28's 24/4). */
+  get teamsPerParticipant(): number {
+    return this.participants.length ? this.totalTeamsCount / this.participants.length : 0;
+  }
+
   private readonly COLORS = ['#1e88e5', '#e53935', '#43a047', '#fb8c00'];
   private readonly API_URL = environment.apiUrl;
   private readonly STORAGE_KEY = 'team-picker-assignments';
@@ -275,9 +285,16 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
     return Object.values(this.assignments).filter(v => v === lastName).length;
   }
 
+  /** Even split of one rank's teams across participants (e.g. 2 for WC26's 8-team tiers, 4 participants). */
+  getRankCap(rank: number): number {
+    const group = this.rankGroups.find(g => g.rank === rank);
+    if (!group || !this.participants.length) return 0;
+    return group.teams.length / this.participants.length;
+  }
+
   isParticipantDisabledForTeam(lastName: string, rank: number, teamName: string): boolean {
     if (this.assignments[teamName] === lastName) return false;
-    return this.getAssignmentCount(lastName, rank) >= 2;
+    return this.getAssignmentCount(lastName, rank) >= this.getRankCap(rank);
   }
 
   getAssignedCount(): number {
@@ -285,7 +302,7 @@ export class TeamPickerComponent implements OnInit, OnDestroy {
   }
 
   canSave(): boolean {
-    return this.getAssignedCount() === 48;
+    return this.getAssignedCount() === this.totalTeamsCount;
   }
 
   getTeamsForParticipantAll(lastName: string): string[] {

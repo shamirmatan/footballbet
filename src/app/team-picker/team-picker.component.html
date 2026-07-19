@@ -85,7 +85,7 @@
             <span class="picked-count-chip"
                   [style.background]="participantColors[p.lastName] + '18'"
                   [style.color]="participantColors[p.lastName]">
-              {{ getTotalCount(p.lastName) }}/12
+              {{ getTotalCount(p.lastName) }}/{{ teamsPerParticipant }}
             </span>
           </div>
           <div class="sidebar-card-teams">
