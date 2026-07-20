@@ -1,9 +1,14 @@
 name: Cron — daily winning chances
 
+# Schedule paused: WC26 is archived and Euro28 hasn't started, so there's no
+# live tournament for this to simulate right now (updateChances.ts no-ops
+# without one anyway, but no reason to keep spinning it up daily). Re-add the
+# `schedule:` trigger below once a tournament is live again, or run it by
+# hand via workflow_dispatch in the meantime.
 on:
-  schedule:
-    # 04:00 UTC = 07:00 Israel (IDT, UTC+3) during the tournament.
-    - cron: '0 4 * * *'
+  # schedule:
+  #   # 04:00 UTC = 07:00 Israel (IDT, UTC+3) during the tournament.
+  #   - cron: '0 4 * * *'
   workflow_dispatch:
 
 jobs:
